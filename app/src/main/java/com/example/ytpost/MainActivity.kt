@@ -24,14 +24,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var database: AppDatabase
     private lateinit var sessionManager: TelegramSessionManager
     private lateinit var taskAdapter: TaskAdapter
-    
-    // 1. Declare the binding variable
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // 2. Initialize binding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -45,7 +41,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        // 3. Access views directly via binding.ID (No more findViewById needed)
         binding.etApiId.setText(sessionManager.getApiId())
         binding.etApiHash.setText(sessionManager.getApiHash())
         binding.etPhone.setText(sessionManager.getPhoneNumber())
@@ -56,7 +51,8 @@ class MainActivity : AppCompatActivity() {
                 binding.etApiHash.text.toString(),
                 binding.etPhone.text.toString()
             )
-            Toast.makeText(this, "Config Saved", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "تنظیمات ذخیره شد", Toast.LENGTH_SHORT).show()
+            log("تنظیمات تلگرام ذخیره شد.")
         }
 
         if (sessionManager.getSessionString() != null) {
@@ -69,12 +65,12 @@ class MainActivity : AppCompatActivity() {
             val phone = binding.etPhone.text.toString().trim()
 
             if (apiId.isEmpty() || apiHash.isEmpty() || phone.isEmpty()) {
-                Toast.makeText(this, "لطفاً API ID، API Hash و شماره رو پر کن", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "لطفاً همه‌ی فیلدها را پر کنید", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            sessionManager.saveTelegramCredentials(apiId, apiHash, phone)
-            binding.tvLoginStatus.text = "وضعیت: در حال ارسال کد..."
+            log("شروع فرآیند لاگین برای شماره $phone...")
+            binding.tvLoginStatus.text = "وضعیت: در حال اتصال..."
 
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -84,17 +80,19 @@ class MainActivity : AppCompatActivity() {
 
                     withContext(Dispatchers.Main) {
                         if (result == "OK") {
-                            binding.tvLoginStatus.text = "وضعیت: کد ارسال شد، وارد کن"
+                            binding.tvLoginStatus.text = "وضعیت: کد ارسال شد"
+                            log("کد تایید با موفقیت ارسال شد.")
                             showCodeDialog()
                         } else {
                             binding.tvLoginStatus.text = "وضعیت: خطا"
+                            log("خطا در درخواست کد: $result")
                             Toast.makeText(this@MainActivity, result, Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        binding.tvLoginStatus.text = "وضعیت: خطا در پایتون"
-                        Toast.makeText(this@MainActivity, e.message ?: "Unknown error", Toast.LENGTH_LONG).show()
+                        binding.tvLoginStatus.text = "وضعیت: خطای سیستم"
+                        log("خطای کرش پایتون: ${e.message}")
                     }
                 }
             }
@@ -107,17 +105,16 @@ class MainActivity : AppCompatActivity() {
                     database.taskDao().insert(Task(sourceUrl = link, status = "queued"))
                     withContext(Dispatchers.Main) {
                         binding.etManualLink.setText("")
-                        Toast.makeText(this@MainActivity, "Link added to queue", Toast.LENGTH_SHORT).show()
+                        log("لینک دستی به صف اضافه شد: $link")
                     }
                 }
             }
         }
 
         val sharedPrefs = getSharedPreferences("rss_prefs", Context.MODE_PRIVATE)
-        
         fun updateRssText() {
             val sources = sharedPrefs.getStringSet("rss_sources", emptySet())
-            binding.tvRssList.text = sources?.joinToString("\n") ?: "No sources added."
+            binding.tvRssList.text = sources?.joinToString("\n") ?: "منبعی اضافه نشده"
         }
         updateRssText()
 
@@ -129,6 +126,7 @@ class MainActivity : AppCompatActivity() {
                 sharedPrefs.edit().putStringSet("rss_sources", sources).apply()
                 binding.etRssSource.setText("")
                 updateRssText()
+                log("منبع RSS جدید اضافه شد: $source")
             }
         }
 
@@ -168,35 +166,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun showCodeDialog() {
         val input = EditText(this)
-        input.hint = "کد تایید تلگرام"
+        input.hint = "کد ۵ رقمی تلگرام"
         AlertDialog.Builder(this)
-            .setTitle("کد تایید")
+            .setTitle("تایید شماره")
             .setView(input)
-            .setPositiveButton("تایید") { _, _ ->
+            .setPositiveButton("ارسال") { _, _ ->
                 val code = input.text.toString().trim()
                 submitLoginCode(code)
             }
             .setNegativeButton("لغو", null)
-            .setCancelable(false)
-            .show()
-    }
-
-    private fun showPasswordDialog() {
-        val input = EditText(this)
-        input.hint = "رمز تایید دومرحله‌ای"
-        AlertDialog.Builder(this)
-            .setTitle("تایید دومرحله‌ای")
-            .setView(input)
-            .setPositiveButton("تایید") { _, _ ->
-                val password = input.text.toString().trim()
-                submitLoginPassword(password)
-            }
-            .setNegativeButton("لغو", null)
-            .setCancelable(false)
             .show()
     }
 
     private fun submitLoginCode(code: String) {
+        log("در حال تایید کد $code...")
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val py = Python.getInstance()
@@ -206,27 +189,37 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     when {
                         result == "NEED_PASSWORD" -> {
-                            binding.tvLoginStatus.text = "وضعیت: نیاز به رمز دومرحله‌ای"
+                            log("اکانت دارای رمز دومرحله‌ای است.")
                             showPasswordDialog()
                         }
                         result.startsWith("ERROR") -> {
-                            binding.tvLoginStatus.text = "وضعیت: خطا"
+                            log("خطا در تایید کد: $result")
                             Toast.makeText(this@MainActivity, result, Toast.LENGTH_LONG).show()
                         }
                         else -> {
                             sessionManager.saveSessionString(result)
                             binding.tvLoginStatus.text = "وضعیت: وارد شده ✅"
-                            Toast.makeText(this@MainActivity, "ورود موفق", Toast.LENGTH_SHORT).show()
+                            log("ورود با موفقیت انجام شد و نشست ذخیره گشت.")
                         }
                     }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    binding.tvLoginStatus.text = "وضعیت: خطا در پایتون"
-                    Toast.makeText(this@MainActivity, e.message ?: "Unknown error", Toast.LENGTH_LONG).show()
-                }
+                withContext(Dispatchers.Main) { log("خطا: ${e.message}") }
             }
         }
+    }
+
+    private fun showPasswordDialog() {
+        val input = EditText(this)
+        input.hint = "Password"
+        AlertDialog.Builder(this)
+            .setTitle("Two-Step Verification")
+            .setView(input)
+            .setPositiveButton("تایید") { _, _ ->
+                val password = input.text.toString().trim()
+                submitLoginPassword(password)
+            }
+            .show()
     }
 
     private fun submitLoginPassword(password: String) {
@@ -238,26 +231,22 @@ class MainActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     if (result.startsWith("ERROR")) {
-                        binding.tvLoginStatus.text = "وضعیت: خطا"
-                        Toast.makeText(this@MainActivity, result, Toast.LENGTH_LONG).show()
+                        log("خطا در رمز عبور: $result")
                     } else {
                         sessionManager.saveSessionString(result)
                         binding.tvLoginStatus.text = "وضعیت: وارد شده ✅"
-                        Toast.makeText(this@MainActivity, "ورود موفق", Toast.LENGTH_SHORT).show()
+                        log("ورود با تایید دومرحله‌ای موفقیت‌آمیز بود.")
                     }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    binding.tvLoginStatus.text = "وضعیت: خطا در پایتون"
-                    Toast.makeText(this@MainActivity, e.message ?: "Unknown error", Toast.LENGTH_LONG).show()
-                }
+                withContext(Dispatchers.Main) { log("خطا: ${e.message}") }
             }
         }
     }
 
     private fun log(message: String) {
         runOnUiThread {
-            binding.tvLogs.append("${System.currentTimeMillis()}: $message\n")
+            binding.tvLogs.append("[${java.text.SimpleDateFormat("HH:mm:ss").format(java.util.Date())}] $message\n")
         }
     }
 }

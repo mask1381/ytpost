@@ -1,4 +1,5 @@
 import asyncio
+import socks
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError
@@ -6,11 +7,14 @@ from telethon.errors import SessionPasswordNeededError
 # کلاینت موقت رو تا پایان فرآیند لاگین نگه می‌داریم
 _pending = {}
 
+# --- تنظیمات پروکسی ---
+# اگر فیلترشکن شما (مثل v2ray) روی گوشی پورت SOCKS5 باز می‌کند، مقادیر زیر را تنظیم کنید.
+# معمولاً: (socks.SOCKS5, '127.0.0.1', 10808)
+# اگر نمی‌خواهید از پروکسی داخلی استفاده کنید، این را None بگذارید.
+PROXY = None 
+# مثال برای فعال‌سازی: PROXY = (socks.SOCKS5, '127.0.0.1', 10808)
+
 def _ensure_event_loop():
-    """
-    اطمینان از اینکه ترد فعلی دارای یک event loop است.
-    برای کارکرد صحیح Telethon در تردهای مختلف Chaquopy ضروری است.
-    """
     try:
         asyncio.get_event_loop()
     except RuntimeError:
@@ -18,39 +22,42 @@ def _ensure_event_loop():
         asyncio.set_event_loop(loop)
 
 def request_code(api_id: str, api_hash: str, phone: str) -> str:
-    """
-    مرحله ۱: کد تایید رو به شماره ارسال می‌کنه.
-    خروجی: "OK" یا "ERROR: <پیام>"
-    """
     _ensure_event_loop()
     try:
-        client = TelegramClient(StringSession(), int(api_id), api_hash)
+        if not api_id.strip().isdigit():
+            return "ERROR: API ID باید فقط عدد باشد."
+            
+        client = TelegramClient(
+            StringSession(), 
+            int(api_id), 
+            api_hash,
+            proxy=PROXY,
+            connection_retries=2,
+            timeout=15
+        )
+        
         client.connect()
-        sent = client.send_code_request(phone)
-        _pending['client'] = client
-        _pending['phone'] = phone
-        _pending['phone_code_hash'] = sent.phone_code_hash
-        return "OK"
+        
+        if not client.is_user_authorized():
+            sent = client.send_code_request(phone)
+            _pending['client'] = client
+            _pending['phone'] = phone
+            _pending['phone_code_hash'] = sent.phone_code_hash
+            return "OK"
+        else:
+            return "ALREADY_AUTHORIZED"
+    except ConnectionError:
+        return "ERROR: قطع اتصال. فیلترشکن خود را بررسی کنید یا در فایل telegram_auth.py پروکسی ست کنید."
     except Exception as e:
-        return f"ERROR: {e}"
+        return f"ERROR: {str(e)}"
 
 def submit_code(code: str) -> str:
-    """
-    مرحله ۲: کد وارد شده توسط کاربر رو تایید می‌کنه.
-    خروجی: session_string در صورت موفقیت،
-            "NEED_PASSWORD" اگه تایید دومرحله‌ای فعال باشه،
-            یا "ERROR: <پیام>"
-    """
     _ensure_event_loop()
     client = _pending.get('client')
     if client is None:
-        return "ERROR: no pending login, request_code first"
+        return "ERROR: جلسه‌ی فعالی یافت نشد."
     try:
-        client.sign_in(
-            phone=_pending['phone'],
-            code=code,
-            phone_code_hash=_pending['phone_code_hash']
-        )
+        client.sign_in(phone=_pending['phone'], code=code, phone_code_hash=_pending['phone_code_hash'])
         session_str = client.session.save()
         client.disconnect()
         _pending.clear()
@@ -58,17 +65,13 @@ def submit_code(code: str) -> str:
     except SessionPasswordNeededError:
         return "NEED_PASSWORD"
     except Exception as e:
-        return f"ERROR: {e}"
+        return f"ERROR: {str(e)}"
 
 def submit_password(password: str) -> str:
-    """
-    مرحله ۳ (اختیاری): در صورت فعال بودن تایید دومرحله‌ای.
-    خروجی: session_string یا "ERROR: <پیام>"
-    """
     _ensure_event_loop()
     client = _pending.get('client')
     if client is None:
-        return "ERROR: no pending login"
+        return "ERROR: جلسه‌ی فعالی یافت نشد."
     try:
         client.sign_in(password=password)
         session_str = client.session.save()
@@ -76,4 +79,4 @@ def submit_password(password: str) -> str:
         _pending.clear()
         return session_str
     except Exception as e:
-        return f"ERROR: {e}"
+        return f"ERROR: {str(e)}"

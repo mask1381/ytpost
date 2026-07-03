@@ -50,6 +50,7 @@ chaquopy {
             install("yt-dlp")
             install("telethon")
             install("feedparser")
+            install("pysocks")
         }
     }
 }
