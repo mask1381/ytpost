@@ -37,11 +37,31 @@
             android:hint="Phone Number"
             android:inputType="phone" />
 
-        <Button
-            android:id="@+id/btnSaveConfig"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Save Config" />
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnSaveConfig"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Save Config" />
+
+            <Button
+                android:id="@+id/btnLogin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Login" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvLoginStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="وضعیت: وارد نشده"
+            android:layout_marginTop="4dp" />
 
         <View
             android:layout_width="match_parent"
