@@ -1,0 +1,14 @@
+package com.example.ytpost.data
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "tasks")
+data class Task(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sourceUrl: String,
+    val status: String, // queued, downloading, uploading, done, failed
+    val caption: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val errorMessage: String? = null
+)
