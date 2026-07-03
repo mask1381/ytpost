@@ -7,21 +7,19 @@ plugins {
 
 android {
     namespace = "com.example.ytpost"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.ytpost"
-        minSdk = 33
-        targetSdk = 36
+        minSdk = 24
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
     }
 
@@ -35,23 +33,23 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
     buildFeatures {
         viewBinding = true
     }
 }
 
-// بلاک مخصوص Chaquopy در Kotlin DSL باید جدا از android{} باشه
 chaquopy {
     defaultConfig {
         pip {
             install("yt-dlp")
             install("telethon")
+            install("feedparser")
         }
     }
 }
@@ -70,15 +68,15 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     // WorkManager
-    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.work.runtime-ktx)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
-    // Security (برای ذخیره امن session تلگرام)
+    // Security
     implementation(libs.androidx.security.crypto)
 
-    // Lifecycle scope
+    // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // RecyclerView

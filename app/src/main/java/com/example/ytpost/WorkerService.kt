@@ -4,14 +4,17 @@ import android.app.*
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.chaquo.python.Python
 import com.example.ytpost.data.AppDatabase
 import com.example.ytpost.data.Task
 import kotlinx.coroutines.*
+import java.io.File
 
 class WorkerService : Service() {
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
     private lateinit var database: AppDatabase
+    private lateinit var sessionManager: TelegramSessionManager
 
     companion object {
         const val CHANNEL_ID = "WorkerServiceChannel"
@@ -21,6 +24,7 @@ class WorkerService : Service() {
     override fun onCreate() {
         super.onCreate()
         database = AppDatabase.getDatabase(this)
+        sessionManager = TelegramSessionManager(this)
         createNotificationChannel()
     }
 
@@ -53,21 +57,55 @@ class WorkerService : Service() {
         database.taskDao().update(task.copy(status = "downloading"))
         
         try {
-            // TODO: Call Chaquopy to run yt-dlp script
-            delay(2000) // Simulating work
+            val py = Python.getInstance()
+            val downloadDir = getExternalFilesDir("downloads")?.absolutePath ?: filesDir.absolutePath
+            
+            // 1. Download
+            val downloader = py.getModule("downloader")
+            val downloadResult = downloader.callAttr("download_video", task.sourceUrl, downloadDir).toString()
+            
+            if (downloadResult.startsWith("ERROR")) {
+                throw Exception(downloadResult)
+            }
+            
+            val filePath = downloadResult
             
             // Update status to uploading
             database.taskDao().update(task.copy(status = "uploading"))
             
-            // TODO: Call Chaquopy to run Telethon script
-            delay(2000) // Simulating work
+            // 2. Upload to Telegram
+            val uploader = py.getModule("uploader")
+            val sessionStr = sessionManager.getSessionString()
+            val apiId = sessionManager.getApiId()
+            val apiHash = sessionManager.getApiHash()
+            
+            if (sessionStr == null || apiId == null || apiHash == null) {
+                throw Exception("Telegram not configured. Please login first.")
+            }
+            
+            val uploadResult = uploader.callAttr(
+                "upload_to_telegram", 
+                sessionStr, 
+                apiId, 
+                apiHash, 
+                filePath, 
+                task.caption ?: ""
+            ).toString()
+            
+            if (uploadResult.startsWith("ERROR")) {
+                throw Exception(uploadResult)
+            }
+
+            // Cleanup downloaded file
+            File(filePath).delete()
             
             // Update status to done
             database.taskDao().update(task.copy(status = "done"))
             showCompletionNotification("Task Completed", "Finished processing ${task.sourceUrl}")
+            
         } catch (e: Exception) {
             database.taskDao().update(task.copy(status = "failed", errorMessage = e.message))
-            showCompletionNotification("Task Failed", "Error processing ${task.sourceUrl}")
+            showCompletionNotification("Task Failed", "Error processing ${task.sourceUrl}: ${e.message}")
         }
     }
 
@@ -76,6 +114,7 @@ class WorkerService : Service() {
             .setContentTitle("YTPost Worker")
             .setContentText(content)
             .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
@@ -91,6 +130,7 @@ class WorkerService : Service() {
             .setContentText(content)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
             .build()
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.notify(System.currentTimeMillis().toInt(), notification)

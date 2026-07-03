@@ -3,6 +3,7 @@ package com.example.ytpost
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.chaquo.python.Python
 import com.example.ytpost.data.AppDatabase
 import com.example.ytpost.data.ProcessedItem
 import com.example.ytpost.data.Task
@@ -18,14 +19,13 @@ class RssCheckWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
         for (url in rssUrls) {
             try {
-                // TODO: Call Chaquopy to fetch RSS/Youtube channel items
                 val newItems = fetchNewItemsFromPython(url) 
 
                 for (itemUrl in newItems) {
                     if (!database.processedItemDao().isProcessed(itemUrl)) {
-                        // Add to task queue
+                        // افزودن به صف تسک‌ها
                         database.taskDao().insert(Task(sourceUrl = itemUrl, status = "queued"))
-                        // Mark as processed
+                        // علامت‌گذاری به عنوان پردازش شده
                         database.processedItemDao().insert(ProcessedItem(url = itemUrl))
                     }
                 }
@@ -38,8 +38,14 @@ class RssCheckWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     private fun fetchNewItemsFromPython(url: String): List<String> {
-        // TODO: Actual Chaquopy call to a python script that parses RSS
-        // For now, return empty list
-        return emptyList()
+        return try {
+            val py = Python.getInstance()
+            val module = py.getModule("rss_checker")
+            val result = module.callAttr("fetch_new_items", url)
+            result.asList().map { it.toString() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 }

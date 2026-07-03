@@ -1,4 +1,4 @@
-# مدیریت فرآیند لاگین تلگرام با Telethon (نسخه sync برای سازگاری با Chaquopy)
+import asyncio
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError
@@ -6,12 +6,23 @@ from telethon.errors import SessionPasswordNeededError
 # کلاینت موقت رو تا پایان فرآیند لاگین نگه می‌داریم
 _pending = {}
 
+def _ensure_event_loop():
+    """
+    اطمینان از اینکه ترد فعلی دارای یک event loop است.
+    برای کارکرد صحیح Telethon در تردهای مختلف Chaquopy ضروری است.
+    """
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
 def request_code(api_id: str, api_hash: str, phone: str) -> str:
     """
     مرحله ۱: کد تایید رو به شماره ارسال می‌کنه.
     خروجی: "OK" یا "ERROR: <پیام>"
     """
+    _ensure_event_loop()
     try:
         client = TelegramClient(StringSession(), int(api_id), api_hash)
         client.connect()
@@ -23,7 +34,6 @@ def request_code(api_id: str, api_hash: str, phone: str) -> str:
     except Exception as e:
         return f"ERROR: {e}"
 
-
 def submit_code(code: str) -> str:
     """
     مرحله ۲: کد وارد شده توسط کاربر رو تایید می‌کنه.
@@ -31,6 +41,7 @@ def submit_code(code: str) -> str:
             "NEED_PASSWORD" اگه تایید دومرحله‌ای فعال باشه،
             یا "ERROR: <پیام>"
     """
+    _ensure_event_loop()
     client = _pending.get('client')
     if client is None:
         return "ERROR: no pending login, request_code first"
@@ -49,12 +60,12 @@ def submit_code(code: str) -> str:
     except Exception as e:
         return f"ERROR: {e}"
 
-
 def submit_password(password: str) -> str:
     """
     مرحله ۳ (اختیاری): در صورت فعال بودن تایید دومرحله‌ای.
     خروجی: session_string یا "ERROR: <پیام>"
     """
+    _ensure_event_loop()
     client = _pending.get('client')
     if client is None:
         return "ERROR: no pending login"
