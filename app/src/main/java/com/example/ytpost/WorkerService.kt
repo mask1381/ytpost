@@ -26,6 +26,7 @@ class WorkerService : Service() {
         database = AppDatabase.getDatabase(this)
         sessionManager = TelegramSessionManager(this)
         createNotificationChannel()
+        AppLogger.log("WorkerService Created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -39,6 +40,7 @@ class WorkerService : Service() {
 
     private fun processQueue() {
         serviceScope.launch(Dispatchers.IO) {
+            AppLogger.log("Queue processing started")
             while (isActive) {
                 val task = database.taskDao().getNextQueuedTask()
                 if (task != null) {
@@ -51,36 +53,46 @@ class WorkerService : Service() {
     }
 
     private suspend fun processTask(task: Task) {
+        AppLogger.log("New Task: ${task.sourceUrl}")
         updateNotification("Processing: ${task.sourceUrl}")
         
-        // Update status to downloading
         database.taskDao().update(task.copy(status = "downloading"))
         
         try {
             val py = Python.getInstance()
             val downloadDir = getExternalFilesDir("downloads")?.absolutePath ?: filesDir.absolutePath
             
-            // 1. Download
             val downloader = py.getModule("downloader")
-            val downloadResult = downloader.callAttr("download_video", task.sourceUrl, downloadDir).toString()
+            val captionBuilder = py.getModule("caption_builder")
+            val uploader = py.getModule("uploader")
+
+            // 1. Download
+            AppLogger.log("Downloading...")
+            val downloadPyResult = downloader.callAttr("download_video", task.sourceUrl, downloadDir)
+            val downloadList = downloadPyResult.asList()
             
-            if (downloadResult.startsWith("ERROR")) {
-                throw Exception(downloadResult)
+            val statusOrPath = downloadList[0].toString()
+            if (statusOrPath == "ERROR") {
+                throw Exception(downloadList[1].toString())
             }
             
-            val filePath = downloadResult
+            val filePath = statusOrPath
+            val title = downloadList[1].toString()
+            AppLogger.log("Download complete: $title")
+
+            // 2. Build Caption
+            val finalCaption = captionBuilder.callAttr("build_caption", title, task.sourceUrl).toString()
             
-            // Update status to uploading
+            // 3. Upload
+            AppLogger.log("Uploading to Telegram...")
             database.taskDao().update(task.copy(status = "uploading"))
             
-            // 2. Upload to Telegram
-            val uploader = py.getModule("uploader")
             val sessionStr = sessionManager.getSessionString()
             val apiId = sessionManager.getApiId()
             val apiHash = sessionManager.getApiHash()
             
             if (sessionStr == null || apiId == null || apiHash == null) {
-                throw Exception("Telegram not configured. Please login first.")
+                throw Exception("Telegram not configured.")
             }
             
             val uploadResult = uploader.callAttr(
@@ -89,23 +101,23 @@ class WorkerService : Service() {
                 apiId, 
                 apiHash, 
                 filePath, 
-                task.caption ?: ""
+                finalCaption,
+                task.destination
             ).toString()
             
             if (uploadResult.startsWith("ERROR")) {
                 throw Exception(uploadResult)
             }
 
-            // Cleanup downloaded file
             File(filePath).delete()
-            
-            // Update status to done
             database.taskDao().update(task.copy(status = "done"))
+            AppLogger.log("Task finished successfully!")
             showCompletionNotification("Task Completed", "Finished processing ${task.sourceUrl}")
             
         } catch (e: Exception) {
+            AppLogger.log("Task Failed: ${e.message}")
             database.taskDao().update(task.copy(status = "failed", errorMessage = e.message))
-            showCompletionNotification("Task Failed", "Error processing ${task.sourceUrl}: ${e.message}")
+            showCompletionNotification("Task Failed", "Error: ${e.message}")
         }
     }
 
@@ -150,6 +162,7 @@ class WorkerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        AppLogger.log("WorkerService Destroyed")
         serviceJob.cancel()
     }
 }

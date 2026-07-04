@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Task::class, ProcessedItem::class], version = 1, exportSchema = false)
+@Database(entities = [Task::class, ProcessedItem::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun processedItemDao(): ProcessedItemDao
@@ -20,7 +20,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "ytpost_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration() // برای سادگی در مرحله توسعه
+                .build()
                 INSTANCE = instance
                 instance
             }

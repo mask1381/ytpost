@@ -1,32 +1,59 @@
 package com.example.ytpost
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.ytpost.data.Task
+import com.example.ytpost.databinding.ItemTaskBinding
 
-class TaskAdapter : ListAdapter<Task, TaskAdapter.TaskViewHolder>(TaskDiffCallback()) {
+class TaskAdapter(private val onDeleteClick: (Task) -> Unit) : ListAdapter<Task, TaskAdapter.TaskViewHolder>(TaskDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_2, parent, false)
-        return TaskViewHolder(view)
+        val binding = ItemTaskBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return TaskViewHolder(binding, onDeleteClick)
     }
 
     override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val text1: TextView = itemView.findViewById(android.R.id.text1)
-        private val text2: TextView = itemView.findViewById(android.R.id.text2)
-
+    class TaskViewHolder(
+        private val binding: ItemTaskBinding,
+        private val onDeleteClick: (Task) -> Unit
+    ) : RecyclerView.ViewHolder(binding.root) {
+        
         fun bind(task: Task) {
-            text1.text = task.sourceUrl
-            text2.text = "Status: ${task.status} | ${task.errorMessage ?: ""}"
+            binding.tvUrl.text = task.sourceUrl
+            binding.tvDestination.text = "To: ${task.destination}"
+            
+            // Status Chip Logic
+            binding.chipStatus.text = task.status.uppercase()
+            val color = when (task.status.lowercase()) {
+                "queued" -> "#FFB300"
+                "downloading" -> "#03A9F4"
+                "uploading" -> "#9C27B0"
+                "done" -> "#4CAF50"
+                "failed" -> "#F44336"
+                else -> "#757575"
+            }
+            binding.chipStatus.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor(color))
+            binding.chipStatus.setTextColor(Color.WHITE)
+            
+            if (!task.errorMessage.isNullOrEmpty()) {
+                binding.tvError.visibility = View.VISIBLE
+                binding.tvError.text = task.errorMessage
+            } else {
+                binding.tvError.visibility = View.GONE
+            }
+
+            binding.btnDelete.setOnClickListener {
+                onDeleteClick(task)
+            }
         }
     }
 

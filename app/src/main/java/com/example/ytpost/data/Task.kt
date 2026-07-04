@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class Task(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val sourceUrl: String,
+    val destination: String,
     val status: String, // queued, downloading, uploading, done, failed
     val caption: String? = null,
     val createdAt: Long = System.currentTimeMillis(),

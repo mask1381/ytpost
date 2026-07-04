@@ -4,36 +4,45 @@ from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError
 
-# کلاینت موقت رو تا پایان فرآیند لاگین نگه می‌داریم
-_pending = {}
+# ذخیره‌ی کلاینت و لوپ برای حفظ وضعیت در تردهای مختلف اندروید
+_pending = {
+    'client': None,
+    'loop': None,
+    'phone': None,
+    'phone_code_hash': None
+}
 
-# --- تنظیمات پروکسی ---
-# اگر فیلترشکن شما (مثل v2ray) روی گوشی پورت SOCKS5 باز می‌کند، مقادیر زیر را تنظیم کنید.
-# معمولاً: (socks.SOCKS5, '127.0.0.1', 10808)
-# اگر نمی‌خواهید از پروکسی داخلی استفاده کنید، این را None بگذارید.
+# --- تنظیمات پروکسی (در صورت نیاز) ---
 PROXY = None 
-# مثال برای فعال‌سازی: PROXY = (socks.SOCKS5, '127.0.0.1', 10808)
 
-def _ensure_event_loop():
-    try:
-        asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+def _ensure_consistent_loop():
+    """
+    اطمینان از اینکه همیشه از همان لوپی استفاده می‌شود که کلاینت با آن connect شده است.
+    """
+    if _pending['loop'] is None:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        _pending['loop'] = loop
+    else:
+        # تنظیم لوپ ذخیره شده برای ترد فعلی Chaquopy
+        asyncio.set_event_loop(_pending['loop'])
+    return _pending['loop']
 
 def request_code(api_id: str, api_hash: str, phone: str) -> str:
-    _ensure_event_loop()
+    loop = _ensure_consistent_loop()
     try:
         if not api_id.strip().isdigit():
-            return "ERROR: API ID باید فقط عدد باشد."
+            return "ERROR: API ID باید عدد باشد."
             
+        # ساخت کلاینت جدید
         client = TelegramClient(
             StringSession(), 
             int(api_id), 
             api_hash,
-            proxy=PROXY,
-            connection_retries=2,
-            timeout=15
+            proxy=PROXY
         )
         
         client.connect()
@@ -46,21 +55,25 @@ def request_code(api_id: str, api_hash: str, phone: str) -> str:
             return "OK"
         else:
             return "ALREADY_AUTHORIZED"
-    except ConnectionError:
-        return "ERROR: قطع اتصال. فیلترشکن خود را بررسی کنید یا در فایل telegram_auth.py پروکسی ست کنید."
     except Exception as e:
         return f"ERROR: {str(e)}"
 
 def submit_code(code: str) -> str:
-    _ensure_event_loop()
+    _ensure_consistent_loop()
     client = _pending.get('client')
     if client is None:
-        return "ERROR: جلسه‌ی فعالی یافت نشد."
+        return "ERROR: جلسه‌ی فعالی یافت نشد. دوباره درخواست کد بدهید."
     try:
-        client.sign_in(phone=_pending['phone'], code=code, phone_code_hash=_pending['phone_code_hash'])
+        # استفاده از همان کلاینتی که در مرحله قبل connect شده بود
+        client.sign_in(
+            phone=_pending['phone'],
+            code=code,
+            phone_code_hash=_pending['phone_code_hash']
+        )
         session_str = client.session.save()
         client.disconnect()
-        _pending.clear()
+        _pending['client'] = None
+        _pending['loop'] = None # لوپ رو آزاد می‌کنیم برای لاگین بعدی
         return session_str
     except SessionPasswordNeededError:
         return "NEED_PASSWORD"
@@ -68,7 +81,7 @@ def submit_code(code: str) -> str:
         return f"ERROR: {str(e)}"
 
 def submit_password(password: str) -> str:
-    _ensure_event_loop()
+    _ensure_consistent_loop()
     client = _pending.get('client')
     if client is None:
         return "ERROR: جلسه‌ی فعالی یافت نشد."
@@ -76,7 +89,8 @@ def submit_password(password: str) -> str:
         client.sign_in(password=password)
         session_str = client.session.save()
         client.disconnect()
-        _pending.clear()
+        _pending['client'] = None
+        _pending['loop'] = None
         return session_str
     except Exception as e:
         return f"ERROR: {str(e)}"

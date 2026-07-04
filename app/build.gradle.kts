@@ -12,7 +12,7 @@ android {
     defaultConfig {
         applicationId = "com.example.ytpost"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -51,6 +51,8 @@ chaquopy {
             install("telethon")
             install("feedparser")
             install("pysocks")
+            install("certifi")
+            install("pycryptodome")
         }
     }
 }
