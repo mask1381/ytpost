@@ -24,13 +24,13 @@ class LogsFragment : Fragment() {
         
         viewLifecycleOwner.lifecycleScope.launch {
             AppLogger.logs.collect { logs ->
-                binding.tvLogs.text = logs
+                if (_binding != null) {
+                    binding.tvLogs.text = logs
+                }
             }
         }
 
         binding.btnClearLogs.setOnClickListener {
-            // Since AppLogger is an object with StateFlow, we need a way to clear it.
-            // I will add a clear function to AppLogger.
             AppLogger.clear()
         }
     }

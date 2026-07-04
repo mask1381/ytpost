@@ -12,15 +12,19 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.chaquo.python.Python
 import com.example.ytpost.TelegramSessionManager
+import com.example.ytpost.data.AppDatabase
+import com.example.ytpost.data.DownloadPreferenceProfile
 import com.example.ytpost.databinding.FragmentSettingsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
     private lateinit var sessionManager: TelegramSessionManager
+    private lateinit var database: AppDatabase
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSettingsBinding.inflate(inflater, container, false)
@@ -30,9 +34,36 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         sessionManager = TelegramSessionManager(requireContext())
+        database = AppDatabase.getDatabase(requireContext())
 
         setupTelegramConfig()
         setupRssConfig()
+        setupDebugInfo()
+    }
+
+    private fun setupDebugInfo() {
+        binding.btnCheckVersion.setOnClickListener {
+            binding.tvVersionInfo.text = "Checking..."
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val py = Python.getInstance()
+                    val module = py.getModule("downloader")
+                    val version = module.callAttr("get_ytdlp_version").toString()
+                    
+                    withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
+                        binding.tvVersionInfo.text = "Version: $version"
+                        Toast.makeText(context, "yt-dlp version: $version", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
+                        binding.tvVersionInfo.text = "Error checking version"
+                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
     }
 
     private fun setupTelegramConfig() {
@@ -65,13 +96,21 @@ class SettingsFragment : Fragment() {
 
             binding.tvLoginStatus.text = "Status: Connecting..."
 
-            lifecycleScope.launch(Dispatchers.IO) {
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val py = Python.getInstance()
                     val module = py.getModule("telegram_auth")
-                    val result = module.callAttr("request_code", apiId, apiHash, phone).toString()
+                    
+                    val result = withTimeoutOrNull(30000) {
+                        module.callAttr("request_code", apiId, apiHash, phone).toString()
+                    }
 
                     withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
+                        if (result == null) {
+                            binding.tvLoginStatus.text = "Status: Timeout"
+                            return@withContext
+                        }
                         if (result == "OK") {
                             binding.tvLoginStatus.text = "Status: Code Sent"
                             showCodeDialog()
@@ -82,6 +121,7 @@ class SettingsFragment : Fragment() {
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
                         binding.tvLoginStatus.text = "Status: System Error"
                         Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
                     }
@@ -94,6 +134,7 @@ class SettingsFragment : Fragment() {
         val rssPrefs = requireActivity().getSharedPreferences("rss_prefs", Context.MODE_PRIVATE)
         
         fun updateRssText() {
+            if (_binding == null) return
             val sources = rssPrefs.getStringSet("rss_sources", emptySet())
             binding.tvRssList.text = sources?.joinToString("\n") ?: "No sources."
         }
@@ -102,12 +143,34 @@ class SettingsFragment : Fragment() {
         binding.btnAddRss.setOnClickListener {
             val source = binding.etRssSource.text.toString().trim()
             if (source.isNotEmpty()) {
-                val sources = rssPrefs.getStringSet("rss_sources", emptySet())?.toMutableSet() ?: mutableSetOf()
-                sources.add(source)
-                rssPrefs.edit().putStringSet("rss_sources", sources).apply()
-                binding.etRssSource.setText("")
-                updateRssText()
-                Toast.makeText(context, "Source Added", Toast.LENGTH_SHORT).show()
+                val quality = when (binding.rgRssQuality.checkedRadioButtonId) {
+                    binding.rbRssMedium.id -> "medium"
+                    binding.rbRssWorst.id -> "worst"
+                    else -> "best"
+                }
+                val includeCarousel = binding.cbRssCarousel.isChecked
+
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                    val profile = DownloadPreferenceProfile(
+                        sourceType = "rss",
+                        sourceIdentifier = source,
+                        defaultQuality = quality,
+                        includeCarousel = includeCarousel,
+                        allowedMediaTypes = "video,photo,audio"
+                    )
+                    database.downloadPreferenceDao().insert(profile)
+
+                    val sources = rssPrefs.getStringSet("rss_sources", emptySet())?.toMutableSet() ?: mutableSetOf()
+                    sources.add(source)
+                    rssPrefs.edit().putStringSet("rss_sources", sources).apply()
+
+                    withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
+                        binding.etRssSource.setText("")
+                        updateRssText()
+                        Toast.makeText(context, "Source & Prefs Added", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
     }
@@ -127,13 +190,20 @@ class SettingsFragment : Fragment() {
     }
 
     private fun submitLoginCode(code: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val py = Python.getInstance()
                 val module = py.getModule("telegram_auth")
-                val result = module.callAttr("submit_code", code).toString()
+                val result = withTimeoutOrNull(30000) {
+                    module.callAttr("submit_code", code).toString()
+                }
 
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    if (result == null) {
+                        Toast.makeText(context, "Timeout", Toast.LENGTH_SHORT).show()
+                        return@withContext
+                    }
                     when {
                         result == "NEED_PASSWORD" -> showPasswordDialog()
                         result.startsWith("ERROR") -> Toast.makeText(context, result, Toast.LENGTH_LONG).show()
@@ -145,7 +215,10 @@ class SettingsFragment : Fragment() {
                     }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Toast.makeText(context, e.message, Toast.LENGTH_LONG).show() }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    Toast.makeText(context, e.message, Toast.LENGTH_LONG).show() 
+                }
             }
         }
     }
@@ -164,13 +237,20 @@ class SettingsFragment : Fragment() {
     }
 
     private fun submitLoginPassword(password: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val py = Python.getInstance()
                 val module = py.getModule("telegram_auth")
-                val result = module.callAttr("submit_password", password).toString()
+                val result = withTimeoutOrNull(30000) {
+                    module.callAttr("submit_password", password).toString()
+                }
 
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    if (result == null) {
+                        Toast.makeText(context, "Timeout", Toast.LENGTH_SHORT).show()
+                        return@withContext
+                    }
                     if (result.startsWith("ERROR")) {
                         Toast.makeText(context, result, Toast.LENGTH_LONG).show()
                     } else {
@@ -179,7 +259,10 @@ class SettingsFragment : Fragment() {
                     }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Toast.makeText(context, e.message, Toast.LENGTH_LONG).show() }
+                withContext(Dispatchers.Main) { 
+                    if (_binding == null) return@withContext
+                    Toast.makeText(context, e.message, Toast.LENGTH_LONG).show() 
+                }
             }
         }
     }

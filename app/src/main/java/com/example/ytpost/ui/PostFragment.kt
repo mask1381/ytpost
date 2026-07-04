@@ -19,6 +19,7 @@ import com.example.ytpost.databinding.FragmentPostBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class PostFragment : Fragment() {
     private var _binding: FragmentPostBinding? = null
@@ -55,7 +56,7 @@ class PostFragment : Fragment() {
     }
 
     private fun showPreview(link: String, destination: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             if (!Python.isStarted()) {
                 Python.start(AndroidPlatform(requireContext()))
             }
@@ -63,17 +64,27 @@ class PostFragment : Fragment() {
             val downloader = py.getModule("downloader")
             
             withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
                 binding.btnSendLink.isEnabled = false
                 binding.btnSendLink.text = "Fetching Preview..."
             }
 
             try {
-                val previewJson = downloader.callAttr("preview_media", link).toString()
+                // اضافه کردن Timeout برای جلوگیری از گیر کردن UI
+                val previewJson = withTimeoutOrNull(30000) {
+                    downloader.callAttr("preview_media", link).toString()
+                }
                 
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
                     binding.btnSendLink.isEnabled = true
                     binding.btnSendLink.text = "SEND TO TELEGRAM"
                     
+                    if (previewJson == null) {
+                        Toast.makeText(context, "Timeout: Network is too slow", Toast.LENGTH_LONG).show()
+                        return@withContext
+                    }
+
                     val dialog = PreviewDialogFragment.newInstance(previewJson)
                     dialog.setOnConfirmListener { quality, onlyFirst, filter, saveDefault ->
                         saveTask(link, destination, quality, onlyFirst, filter, saveDefault)
@@ -82,6 +93,7 @@ class PostFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
                     binding.btnSendLink.isEnabled = true
                     binding.btnSendLink.text = "SEND TO TELEGRAM"
                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
@@ -91,7 +103,7 @@ class PostFragment : Fragment() {
     }
 
     private fun saveTask(link: String, destination: String, quality: String, onlyFirst: Boolean, filter: String?, saveDefault: Boolean) {
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             if (saveDefault) {
                 val pref = DownloadPreferenceProfile(
                     sourceType = "manual",
@@ -114,6 +126,7 @@ class PostFragment : Fragment() {
             
             AppLogger.log("Manual post added with custom settings: $link")
             withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
                 binding.etManualLink.setText("")
                 Toast.makeText(context, "Added to queue with settings", Toast.LENGTH_SHORT).show()
             }
@@ -121,6 +134,7 @@ class PostFragment : Fragment() {
     }
 
     private fun updateStatusCards() {
+        if (_binding == null) return
         if (sessionManager.getSessionString() != null) {
             binding.tvLoginStatus.text = "Connected"
             binding.tvLoginStatus.setTextColor(android.graphics.Color.parseColor("#4CAF50"))

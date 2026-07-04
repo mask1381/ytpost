@@ -17,13 +17,14 @@ class RssCheckWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val rssPrefs = applicationContext.getSharedPreferences("rss_prefs", Context.MODE_PRIVATE)
         val appPrefs = applicationContext.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         
-        // دریافت مقصد پیش‌فرض برای تسک‌های RSS
         val defaultDest = appPrefs.getString("default_destination", "me") ?: "me"
         val rssUrls = rssPrefs.getStringSet("rss_sources", emptySet()) ?: emptySet()
 
         for (url in rssUrls) {
             try {
-                // استفاده از هش URL برای تشخیص اولین اجرا
+                // دریافت تنظیمات اختصاصی برای این فید
+                val pref = database.downloadPreferenceDao().getPreference("rss", url)
+                
                 val urlHash = url.hashCode().toString()
                 val isFirstCheck = !rssPrefs.getBoolean("is_first_check_done_$urlHash", false)
                 
@@ -34,14 +35,16 @@ class RssCheckWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     
                     if (!alreadyProcessed) {
                         if (!isFirstCheck) {
-                            // فقط اگر اولین بار نباشد به صف اضافه می‌شود
+                            // استفاده از تنظیمات ذخیره شده یا مقادیر پیش‌فرض
                             database.taskDao().insert(Task(
                                 sourceUrl = itemUrl, 
                                 destination = defaultDest, 
-                                status = "queued"
+                                status = "queued",
+                                quality = pref?.defaultQuality ?: "best",
+                                onlyFirstItem = !(pref?.includeCarousel ?: true),
+                                mediaFilter = pref?.allowedMediaTypes
                             ))
                         }
-                        // در هر صورت به لیست پردازش شده‌ها اضافه می‌شود
                         database.processedItemDao().insert(ProcessedItem(url = itemUrl))
                     }
                 }

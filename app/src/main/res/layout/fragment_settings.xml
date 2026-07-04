@@ -10,6 +10,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Telegram Config Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -101,6 +102,84 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- RSS Config Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:text="Add RSS Source with Prefs"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:hint="RSS Feed URL">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etRssSource"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Default Quality for this feed:"
+                    android:textAppearance="?attr/textAppearanceLabelSmall"/>
+                <RadioGroup
+                    android:id="@+id/rgRssQuality"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+                    <RadioButton android:id="@+id/rbRssBest" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Best" android:checked="true"/>
+                    <RadioButton android:id="@+id/rbRssMedium" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="720p"/>
+                    <RadioButton android:id="@+id/rbRssWorst" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Small"/>
+                </RadioGroup>
+
+                <CheckBox
+                    android:id="@+id/cbRssCarousel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Include Carousel (All items)"
+                    android:checked="true"
+                    android:layout_marginBottom="8dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddRss"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:text="Add Source" />
+
+                <TextView
+                    android:id="@+id/tvRssList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minLines="2"
+                    android:text="No sources."
+                    android:textAppearance="?attr/textAppearanceBodySmall" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Debug Info Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -118,35 +197,22 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    android:text="Auto Sources (RSS/YT)"
+                    android:text="Debug &amp; Info"
                     android:textAppearance="?attr/textAppearanceTitleMedium" />
 
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:hint="RSS Feed URL">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etRssSource"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
-                </com.google.android.material.textfield.TextInputLayout>
-
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnAddRss"
+                    android:id="@+id/btnCheckVersion"
                     style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:text="Add Source" />
+                    android:text="Check yt-dlp Version" />
 
                 <TextView
-                    android:id="@+id/tvRssList"
+                    android:id="@+id/tvVersionInfo"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:minLines="2"
-                    android:text="No sources."
+                    android:layout_marginTop="8dp"
+                    android:text="Version: Unknown"
                     android:textAppearance="?attr/textAppearanceBodySmall" />
 
             </LinearLayout>

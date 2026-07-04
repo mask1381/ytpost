@@ -16,5 +16,9 @@ data class Task(
     // New fields for preferences
     val quality: String = "best",
     val onlyFirstItem: Boolean = false,
-    val mediaFilter: String? = null // comma separated like "video,photo" or single
+    val mediaFilter: String? = null, // comma separated like "video,photo" or single
+    
+    // Retry logic
+    val retryCount: Int = 0,
+    val lastRetryTimestamp: Long = 0
 )

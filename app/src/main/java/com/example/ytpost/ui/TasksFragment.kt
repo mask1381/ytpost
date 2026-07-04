@@ -13,6 +13,7 @@ import com.example.ytpost.data.AppDatabase
 import com.example.ytpost.databinding.FragmentTasksBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TasksFragment : Fragment() {
     private var _binding: FragmentTasksBinding? = null
@@ -31,7 +32,7 @@ class TasksFragment : Fragment() {
         
         taskAdapter = TaskAdapter { task ->
             // Delete task from database
-            lifecycleScope.launch(Dispatchers.IO) {
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 database.taskDao().delete(task.id)
                 AppLogger.log("Task deleted: ${task.sourceUrl}")
             }
@@ -40,9 +41,11 @@ class TasksFragment : Fragment() {
         binding.rvTasks.adapter = taskAdapter
         binding.rvTasks.layoutManager = LinearLayoutManager(context)
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             database.taskDao().getAllTasks().collect { tasks ->
-                taskAdapter.submitList(tasks)
+                if (_binding != null) {
+                    taskAdapter.submitList(tasks)
+                }
             }
         }
     }

@@ -8,6 +8,7 @@ import com.chaquo.python.Python
 import com.example.ytpost.data.AppDatabase
 import com.example.ytpost.data.Task
 import kotlinx.coroutines.*
+import org.json.JSONArray
 import java.io.File
 
 class WorkerService : Service() {
@@ -42,18 +43,19 @@ class WorkerService : Service() {
         serviceScope.launch(Dispatchers.IO) {
             AppLogger.log("Queue processing started")
             while (isActive) {
-                val task = database.taskDao().getNextQueuedTask()
+                // Fetch next task: either new 'queued' or 'failed' with retries left
+                val task = database.taskDao().getNextQueuedTask(System.currentTimeMillis())
                 if (task != null) {
                     processTask(task)
                 } else {
-                    delay(5000) // Wait for new tasks
+                    delay(10000) // Wait 10 seconds before checking again
                 }
             }
         }
     }
 
     private suspend fun processTask(task: Task) {
-        AppLogger.log("New Task: ${task.sourceUrl}")
+        AppLogger.log("Processing Task: ${task.sourceUrl} (Attempt: ${task.retryCount + 1})")
         updateNotification("Processing: ${task.sourceUrl}")
         
         database.taskDao().update(task.copy(status = "downloading"))
@@ -67,21 +69,44 @@ class WorkerService : Service() {
             val uploader = py.getModule("uploader")
 
             // 1. Download
-            AppLogger.log("Downloading...")
-            val downloadPyResult = downloader.callAttr("download_video", task.sourceUrl, downloadDir)
-            val downloadList = downloadPyResult.asList()
-            
-            val statusOrPath = downloadList[0].toString()
-            if (statusOrPath == "ERROR") {
-                throw Exception(downloadList[1].toString())
+            AppLogger.log("Downloading... (Timeout: 120s)")
+            val downloadPyResult = withTimeout(120000) {
+                downloader.callAttr(
+                    "download_video", 
+                    task.sourceUrl, 
+                    downloadDir, 
+                    task.quality, 
+                    task.onlyFirstItem, 
+                    task.mediaFilter
+                ).toString()
             }
             
-            val filePath = statusOrPath
-            val title = downloadList[1].toString()
-            AppLogger.log("Download complete: $title")
+            val downloadListJson = JSONArray(downloadPyResult)
+            
+            if (downloadListJson.length() == 0) {
+                throw Exception("No files downloaded.")
+            }
+
+            val firstItem = downloadListJson.getJSONArray(0)
+            if (firstItem.getString(0) == "ERROR") {
+                val errorMsg = firstItem.getString(1)
+                if (isRetryableError(errorMsg)) {
+                    throw RecoverableException(errorMsg)
+                } else {
+                    throw Exception(errorMsg)
+                }
+            }
+            
+            val filePaths = mutableListOf<String>()
+            var firstTitle = ""
+            for (i in 0 until downloadListJson.length()) {
+                val item = downloadListJson.getJSONArray(i)
+                filePaths.add(item.getString(0))
+                if (i == 0) firstTitle = item.getString(1)
+            }
 
             // 2. Build Caption
-            val finalCaption = captionBuilder.callAttr("build_caption", title, task.sourceUrl).toString()
+            val finalCaption = captionBuilder.callAttr("build_caption", firstTitle, task.sourceUrl).toString()
             
             // 3. Upload
             AppLogger.log("Uploading to Telegram...")
@@ -95,31 +120,69 @@ class WorkerService : Service() {
                 throw Exception("Telegram not configured.")
             }
             
-            val uploadResult = uploader.callAttr(
-                "upload_to_telegram", 
-                sessionStr, 
-                apiId, 
-                apiHash, 
-                filePath, 
-                finalCaption,
-                task.destination
-            ).toString()
+            val filePathsJson = JSONArray(filePaths).toString()
+            
+            val uploadResult = withTimeout(180000) {
+                uploader.callAttr(
+                    "upload_to_telegram", 
+                    sessionStr, 
+                    apiId, 
+                    apiHash, 
+                    filePathsJson, 
+                    finalCaption,
+                    task.destination
+                ).toString()
+            }
             
             if (uploadResult.startsWith("ERROR")) {
-                throw Exception(uploadResult)
+                if (isRetryableError(uploadResult)) {
+                    throw RecoverableException(uploadResult)
+                } else {
+                    throw Exception(uploadResult)
+                }
             }
 
-            File(filePath).delete()
-            database.taskDao().update(task.copy(status = "done"))
-            AppLogger.log("Task finished successfully!")
+            // Success Cleanup
+            for (path in filePaths) {
+                File(path).delete()
+            }
+            
+            database.taskDao().update(task.copy(status = "done", errorMessage = null))
+            AppLogger.log("Task finished: ${task.sourceUrl}")
             showCompletionNotification("Task Completed", "Finished processing ${task.sourceUrl}")
             
+        } catch (e: RecoverableException) {
+            val nextRetry = task.retryCount + 1
+            AppLogger.log("Recoverable Error: ${e.message}. Retry $nextRetry/3")
+            database.taskDao().update(task.copy(
+                status = "failed", 
+                errorMessage = "Retryable: ${e.message}",
+                retryCount = nextRetry,
+                lastRetryTimestamp = System.currentTimeMillis()
+            ))
         } catch (e: Exception) {
-            AppLogger.log("Task Failed: ${e.message}")
-            database.taskDao().update(task.copy(status = "failed", errorMessage = e.message))
+            AppLogger.log("Fatal Error: ${e.message}")
+            database.taskDao().update(task.copy(
+                status = "failed", 
+                errorMessage = e.message,
+                retryCount = 99 // Stop retrying
+            ))
             showCompletionNotification("Task Failed", "Error: ${e.message}")
         }
     }
+
+    private fun isRetryableError(error: String): Boolean {
+        val lower = error.lowercase()
+        return lower.contains("timeout") || 
+               lower.contains("connection") || 
+               lower.contains("network") || 
+               lower.contains("proxy") || 
+               lower.contains("socks") ||
+               lower.contains("http error 5") ||
+               lower.contains("try again")
+    }
+
+    class RecoverableException(message: String) : Exception(message)
 
     private fun createNotification(content: String): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)

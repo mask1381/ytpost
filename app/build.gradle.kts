@@ -47,8 +47,8 @@ android {
 chaquopy {
     defaultConfig {
         pip {
-            // Updated to get the latest version automatically
-            install("yt-dlp")
+            // Pinning a specific 2025 version to force Chaquopy to re-download and bypass cache
+            install("yt-dlp==2025.1.26")
             install("telethon")
             install("feedparser")
             install("pysocks")
