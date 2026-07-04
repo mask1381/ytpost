@@ -5,10 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Task::class, ProcessedItem::class], version = 2, exportSchema = false)
+@Database(entities = [Task::class, ProcessedItem::class, DownloadPreferenceProfile::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun processedItemDao(): ProcessedItemDao
+    abstract fun downloadPreferenceDao(): DownloadPreferenceDao
 
     companion object {
         @Volatile
@@ -21,7 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ytpost_database"
                 )
-                .fallbackToDestructiveMigration() // برای سادگی در مرحله توسعه
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

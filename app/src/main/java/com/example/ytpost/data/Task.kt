@@ -11,5 +11,10 @@ data class Task(
     val status: String, // queued, downloading, uploading, done, failed
     val caption: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    
+    // New fields for preferences
+    val quality: String = "best",
+    val onlyFirstItem: Boolean = false,
+    val mediaFilter: String? = null // comma separated like "video,photo" or single
 )

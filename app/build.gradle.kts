@@ -47,6 +47,7 @@ android {
 chaquopy {
     defaultConfig {
         pip {
+            // Updated to get the latest version automatically
             install("yt-dlp")
             install("telethon")
             install("feedparser")
@@ -84,6 +85,10 @@ dependencies {
 
     // RecyclerView
     implementation(libs.androidx.recyclerview)
+
+    // Image Loading (For Preview)
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    ksp("com.github.bumptech.glide:ksp:4.16.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
