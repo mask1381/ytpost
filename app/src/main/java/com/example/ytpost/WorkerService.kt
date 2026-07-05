@@ -60,8 +60,7 @@ class WorkerService : Service() {
         database.taskDao().update(task.copy(status = "downloading"))
         
         var currentProxy = ProxyManager.detectProxy()
-        var retryWithoutProxy = false
-
+        
         try {
             executeTaskLogic(task, currentProxy)
         } catch (e: RecoverableException) {
@@ -85,7 +84,7 @@ class WorkerService : Service() {
         }
     }
 
-    private fun executeTaskLogic(task: Task, proxy: String?) {
+    private suspend fun executeTaskLogic(task: Task, proxy: String?) {
         val py = Python.getInstance()
         val downloadDir = getExternalFilesDir("downloads")?.absolutePath ?: filesDir.absolutePath
         
