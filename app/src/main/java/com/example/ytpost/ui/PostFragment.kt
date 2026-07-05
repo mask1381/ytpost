@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.example.ytpost.AppLogger
+import com.example.ytpost.ProxyManager
 import com.example.ytpost.TelegramSessionManager
 import com.example.ytpost.data.AppDatabase
 import com.example.ytpost.data.DownloadPreferenceProfile
@@ -70,9 +71,11 @@ class PostFragment : Fragment() {
             }
 
             try {
-                // اضافه کردن Timeout برای جلوگیری از گیر کردن UI
-                val previewJson = withTimeoutOrNull(30000) {
-                    downloader.callAttr("preview_media", link).toString()
+                // Detect proxy for preview
+                val currentProxy = ProxyManager.detectProxy()
+                
+                val previewJson = withTimeoutOrNull(35000) {
+                    downloader.callAttr("preview_media", link, null, currentProxy).toString()
                 }
                 
                 withContext(Dispatchers.Main) {

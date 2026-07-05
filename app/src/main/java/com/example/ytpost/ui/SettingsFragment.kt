@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.chaquo.python.Python
+import com.example.ytpost.ProxyManager
 import com.example.ytpost.TelegramSessionManager
 import com.example.ytpost.data.AppDatabase
 import com.example.ytpost.data.DownloadPreferenceProfile
@@ -37,8 +38,23 @@ class SettingsFragment : Fragment() {
         database = AppDatabase.getDatabase(requireContext())
 
         setupTelegramConfig()
+        setupProxyConfig()
         setupRssConfig()
         setupDebugInfo()
+    }
+
+    private fun setupProxyConfig() {
+        binding.btnTestProxy.setOnClickListener {
+            binding.tvProxyStatus.text = "Testing ports..."
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val results = ProxyManager.testAllProxies()
+                val active = ProxyManager.detectProxy()
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    binding.tvProxyStatus.text = "Active Proxy: ${active ?: "None (Direct/VPN)"}\n\nFull Scan:\n$results"
+                }
+            }
+        }
     }
 
     private fun setupDebugInfo() {
@@ -100,9 +116,10 @@ class SettingsFragment : Fragment() {
                 try {
                     val py = Python.getInstance()
                     val module = py.getModule("telegram_auth")
+                    val proxy = ProxyManager.detectProxy()
                     
                     val result = withTimeoutOrNull(30000) {
-                        module.callAttr("request_code", apiId, apiHash, phone).toString()
+                        module.callAttr("request_code", apiId, apiHash, phone, proxy).toString()
                     }
 
                     withContext(Dispatchers.Main) {

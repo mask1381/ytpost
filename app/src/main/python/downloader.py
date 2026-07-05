@@ -4,9 +4,6 @@ import certifi
 import json
 import time
 
-# استفاده از socks5h برای حل مشکل DNS در لایه پایتون (بسیار مهم برای ایران)
-PROXY = "socks5h://127.0.0.1:10808"
-
 # تنظیم گواهینامه‌های SSL
 os.environ['SSL_CERT_FILE'] = certifi.where()
 
@@ -20,12 +17,12 @@ def get_ytdlp_version():
     except Exception as e:
         return f"Error: {str(e)}"
 
-def preview_media(url, cookie_file_path=None):
+def preview_media(url, cookie_file_path=None, proxy=None):
     """
     دریافت اطلاعات پیش‌نمایش بدون دانلود
     """
     ydl_opts = {
-        'proxy': PROXY,
+        'proxy': proxy,
         'quiet': True,
         'nocheckcertificate': True,
         'no_warnings': True,
@@ -43,7 +40,7 @@ def preview_media(url, cookie_file_path=None):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Retry logic for preview
+            # Retry logic for preview (Reloaded error)
             try:
                 info = ydl.extract_info(url, download=False)
             except Exception as e:
@@ -115,7 +112,7 @@ def _guess_kind(info):
         return "audio"
     return "video"
 
-def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None):
+def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None, proxy=None):
     """
     دانلود با پارامترهای انتخابی و منطق بازتلاش (Retry)
     """
@@ -134,7 +131,7 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         'restrictfilenames': True,
         'noplaylist': not (not only_first_item),
         'nocheckcertificate': True,
-        'proxy': PROXY,
+        'proxy': proxy,
         'quiet': False,
         'no_warnings': False,
         'extractor_args': {
@@ -169,7 +166,7 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Retry logic for download
+            # Retry logic for download (Reloaded error)
             try:
                 info = ydl.extract_info(url, download=True)
             except Exception as e:

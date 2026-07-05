@@ -10,8 +10,11 @@ object FfmpegManager {
 
     fun getFfmpegPath(context: Context): String? {
         val targetFile = File(context.filesDir, BINARY_NAME)
+        val MIN_EXPECTED_SIZE = 5_000_000L // 5MB به عنوان حداقل منطقی
 
-        if (!targetFile.exists()) {
+        val needsExtraction = !targetFile.exists() || targetFile.length() < MIN_EXPECTED_SIZE
+
+        if (needsExtraction) {
             try {
                 context.assets.open(ASSET_PATH).use { input ->
                     FileOutputStream(targetFile).use { output ->
@@ -19,16 +22,17 @@ object FfmpegManager {
                     }
                 }
                 targetFile.setExecutable(true, false)
-                AppLogger.log("FFmpeg binary extracted to ${targetFile.absolutePath}")
+                AppLogger.log("FFmpeg binary extracted to ${targetFile.absolutePath} (${targetFile.length()} bytes)")
             } catch (e: Exception) {
                 AppLogger.log("Failed to extract ffmpeg binary: ${e.message}")
                 return null
             }
         }
 
-        return if (targetFile.exists() && targetFile.canExecute()) {
+        return if (targetFile.exists() && targetFile.canExecute() && targetFile.length() >= MIN_EXPECTED_SIZE) {
             targetFile.absolutePath
         } else {
+            AppLogger.log("FFmpeg binary invalid or too small: ${targetFile.length()} bytes")
             null
         }
     }
