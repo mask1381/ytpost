@@ -42,6 +42,10 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    androidResources {
+        noCompress += "ffmpeg"
+    }
 }
 
 chaquopy {
