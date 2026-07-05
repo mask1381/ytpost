@@ -46,6 +46,9 @@ android {
 
 chaquopy {
     defaultConfig {
+        // Set Python version to 3.11 to support latest yt-dlp (requires 3.10+)
+        version = "3.11"
+        
         pip {
             // Install directly from GitHub to bypass caching issues and ensure the latest version
             install("git+https://github.com/yt-dlp/yt-dlp.git")
