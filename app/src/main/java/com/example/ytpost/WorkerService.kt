@@ -179,7 +179,8 @@ class WorkerService : Service() {
                lower.contains("proxy") || 
                lower.contains("socks") ||
                lower.contains("http error 5") ||
-               lower.contains("try again")
+               lower.contains("try again") ||
+               lower.contains("not configured")
     }
 
     class RecoverableException(message: String) : Exception(message)

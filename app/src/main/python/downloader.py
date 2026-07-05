@@ -19,7 +19,7 @@ def get_ytdlp_version():
     except Exception as e:
         return f"Error: {str(e)}"
 
-def preview_media(url):
+def preview_media(url, cookie_file_path=None):
     """
     دریافت اطلاعات پیش‌نمایش بدون دانلود
     """
@@ -30,6 +30,9 @@ def preview_media(url):
         'no_warnings': True,
         'extract_flat': 'in_playlist', 
     }
+
+    if cookie_file_path and os.path.exists(cookie_file_path):
+        ydl_opts['cookiefile'] = cookie_file_path
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -95,7 +98,7 @@ def _guess_kind(info):
         return "audio"
     return "video"
 
-def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None):
+def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None):
     """
     دانلود با پارامترهای انتخابی
     media_filter: string like "video,photo"
@@ -103,9 +106,9 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
 
-    format_selector = 'bestvideo+bestaudio/best'
+    format_selector = 'best[ext=mp4]/best'
     if quality == "medium":
-        format_selector = 'best[height<=720]/medium'
+        format_selector = 'best[height<=720][ext=mp4]/best[height<=720]'
     elif quality == "worst":
         format_selector = 'worst'
 
@@ -120,12 +123,15 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         'no_warnings': False,
         'extractor_args': {
             'youtube': {
-                'player_client': ['web', 'tv', 'ios'],
+                'player_client': ['android', 'ios', 'tv'],
                 'skip': ['hls', 'dash']
             }
         },
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
     }
+
+    if cookie_file_path and os.path.exists(cookie_file_path):
+        ydl_opts['cookiefile'] = cookie_file_path
 
     # لیست انواع مجاز
     allowed_kinds = media_filter.split(',') if media_filter else None
