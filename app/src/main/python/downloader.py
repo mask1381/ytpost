@@ -2,6 +2,7 @@ import yt_dlp
 import os
 import certifi
 import json
+import time
 
 # استفاده از socks5h برای حل مشکل DNS در لایه پایتون (بسیار مهم برای ایران)
 PROXY = "socks5h://127.0.0.1:10808"
@@ -28,7 +29,13 @@ def preview_media(url, cookie_file_path=None):
         'quiet': True,
         'nocheckcertificate': True,
         'no_warnings': True,
-        'extract_flat': 'in_playlist', 
+        'extract_flat': 'in_playlist',
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['tv', 'web_safari', 'android'],
+                'skip': ['hls', 'dash']
+            }
+        }
     }
 
     if cookie_file_path and os.path.exists(cookie_file_path):
@@ -36,7 +43,17 @@ def preview_media(url, cookie_file_path=None):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            # Retry logic for preview
+            try:
+                info = ydl.extract_info(url, download=False)
+            except Exception as e:
+                if "reloaded" in str(e).lower():
+                    time.sleep(2)
+                    ydl_opts['extractor_args']['youtube']['player_client'] = ['web']
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
+                        info = ydl_retry.extract_info(url, download=False)
+                else:
+                    raise e
             
             result = {}
             entries = info.get('entries')
@@ -98,19 +115,18 @@ def _guess_kind(info):
         return "audio"
     return "video"
 
-def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None):
+def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None):
     """
-    دانلود با پارامترهای انتخابی
-    media_filter: string like "video,photo"
+    دانلود با پارامترهای انتخابی و منطق بازتلاش (Retry)
     """
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
 
-    format_selector = 'best[ext=mp4]/best'
+    format_selector = 'bv*+ba/b'
     if quality == "medium":
-        format_selector = 'best[height<=720][ext=mp4]/best[height<=720]'
+        format_selector = 'bv*[height<=720]+ba/b[height<=720]'
     elif quality == "worst":
-        format_selector = 'worst'
+        format_selector = 'wv*+wa/w'
 
     ydl_opts = {
         'format': format_selector,
@@ -123,7 +139,7 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         'no_warnings': False,
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'ios', 'tv'],
+                'player_client': ['tv', 'web_safari', 'android'],
                 'skip': ['hls', 'dash']
             }
         },
@@ -132,6 +148,9 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
 
     if cookie_file_path and os.path.exists(cookie_file_path):
         ydl_opts['cookiefile'] = cookie_file_path
+        
+    if ffmpeg_path:
+        ydl_opts['ffmpeg_location'] = ffmpeg_path
 
     # لیست انواع مجاز
     allowed_kinds = media_filter.split(',') if media_filter else None
@@ -150,7 +169,18 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            # Retry logic for download
+            try:
+                info = ydl.extract_info(url, download=True)
+            except Exception as e:
+                if "reloaded" in str(e).lower():
+                    time.sleep(3)
+                    ydl_opts['extractor_args']['youtube']['player_client'] = ['web']
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
+                        info = ydl_retry.extract_info(url, download=True)
+                else:
+                    raise e
+                    
             downloaded_files = []
             
             if 'entries' in info:

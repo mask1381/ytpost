@@ -70,6 +70,7 @@ class WorkerService : Service() {
 
             // 1. Download
             AppLogger.log("Downloading... (Timeout: 120s)")
+            val ffmpegPath = FfmpegManager.getFfmpegPath(this@WorkerService)
             val downloadPyResult = withTimeout(120000) {
                 downloader.callAttr(
                     "download_video", 
@@ -77,7 +78,9 @@ class WorkerService : Service() {
                     downloadDir, 
                     task.quality, 
                     task.onlyFirstItem, 
-                    task.mediaFilter
+                    task.mediaFilter,
+                    null, // cookie_file_path (will be implemented later)
+                    ffmpegPath
                 ).toString()
             }
             
