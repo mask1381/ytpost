@@ -109,6 +109,15 @@ class WorkerService : Service() {
         // 1. Download
         AppLogger.log("Downloading... (Proxy: ${proxy ?: "None"})")
         val ffmpegPath = FfmpegManager.getFfmpegPath(this@WorkerService)
+        
+        // Diagnostic
+        try {
+            val diag = downloader.callAttr("run_diagnostics", ffmpegPath).toString()
+            AppLogger.log("DIAGNOSTIC:\n$diag")
+        } catch (e: Exception) {
+            AppLogger.log("DIAGNOSTIC FAILED: ${e.message}")
+        }
+
         val progressListener = createProgressListener(task)
         
         val sharedPrefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
