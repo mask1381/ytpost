@@ -25,7 +25,7 @@ class WorkerService : Service() {
     override fun onCreate() {
         super.onCreate()
         database = AppDatabase.getDatabase(this)
-        sessionManager = TelegramSessionManager(this)
+        sessionManager = TelegramSessionManager.getInstance(this)
         createNotificationChannel()
         AppLogger.log("WorkerService Created")
     }

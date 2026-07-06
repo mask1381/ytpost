@@ -36,7 +36,7 @@ class PostFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         database = AppDatabase.getDatabase(requireContext())
-        sessionManager = TelegramSessionManager(requireContext())
+        sessionManager = TelegramSessionManager.getInstance(requireContext())
 
         updateStatusCards()
 

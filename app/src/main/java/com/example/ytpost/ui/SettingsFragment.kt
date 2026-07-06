@@ -34,7 +34,7 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        sessionManager = TelegramSessionManager(requireContext())
+        sessionManager = TelegramSessionManager.getInstance(requireContext())
         database = AppDatabase.getDatabase(requireContext())
 
         setupTelegramConfig()
