@@ -5,22 +5,51 @@ import java.io.File
 
 object FfmpegManager {
     fun getFfmpegPath(context: Context): String? {
-        // On Android 10+ (API 29+), we MUST execute from nativeLibraryDir.
-        // Files must be in jniLibs and named lib*.so
-        val nativeDir = context.applicationInfo.nativeLibraryDir
-        val ffmpegFile = File(nativeDir, "libffmpeg.so")
-        
-        return if (ffmpegFile.exists()) {
-            AppLogger.log("FFmpeg found in native library path: $nativeDir")
-            nativeDir
-        } else {
-            AppLogger.log("CRITICAL: libffmpeg.so NOT found in $nativeDir")
-            // Try to list files in nativeDir for debugging
-            try {
-                val files = File(nativeDir).list()?.joinToString(", ")
-                AppLogger.log("Native dir contents: $files")
-            } catch (e: Exception) {}
-            nativeDir // Return it anyway and let Python handle diagnostics
+        val binDir = File(context.filesDir, "bin")
+        if (!binDir.exists()) {
+            binDir.mkdirs()
         }
+
+        val ffmpegTarget = File(binDir, "ffmpeg")
+        val ffprobeTarget = File(binDir, "ffprobe")
+
+        // Optimization: Only copy if files don't exist
+        if (!ffmpegTarget.exists() || !ffprobeTarget.exists()) {
+            val nativeDir = context.applicationInfo.nativeLibraryDir
+            val ffmpegSrc = File(nativeDir, "libffmpeg.so")
+            val ffprobeSrc = File(nativeDir, "libffprobe.so")
+
+            if (ffmpegSrc.exists()) {
+                try {
+                    ffmpegSrc.inputStream().use { input ->
+                        ffmpegTarget.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    ffmpegTarget.setExecutable(true, false)
+                    AppLogger.log("FFmpeg binary prepared in bin folder")
+                } catch (e: Exception) {
+                    AppLogger.log("Failed to copy ffmpeg: ${e.message}")
+                }
+            }
+
+            if (ffprobeSrc.exists()) {
+                try {
+                    ffprobeSrc.inputStream().use { input ->
+                        ffprobeTarget.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    ffprobeTarget.setExecutable(true, false)
+                    AppLogger.log("FFprobe binary prepared in bin folder")
+                } catch (e: Exception) {
+                    AppLogger.log("Failed to copy ffprobe: ${e.message}")
+                }
+            }
+        }
+
+        val finalPath = binDir.absolutePath
+        AppLogger.log("Final ffmpeg_location set to: $finalPath")
+        return finalPath
     }
 }
