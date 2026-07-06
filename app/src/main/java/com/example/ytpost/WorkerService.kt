@@ -111,6 +111,9 @@ class WorkerService : Service() {
         val ffmpegPath = FfmpegManager.getFfmpegPath(this@WorkerService)
         val progressListener = createProgressListener(task)
         
+        val sharedPrefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val cookiePath = sharedPrefs.getString("cookie_file_path", null)
+        
         val downloadPyResult = downloader.callAttr(
             "download_video", 
             task.sourceUrl, 
@@ -118,10 +121,13 @@ class WorkerService : Service() {
             task.quality, 
             task.onlyFirstItem, 
             task.mediaFilter,
-            null, // cookie_file_path
+            cookiePath,
             ffmpegPath,
             proxy,
-            progressListener
+            progressListener,
+            task.writeSubs,
+            task.audioOnly,
+            task.customArgs
         ).toString()
         
         val downloadListJson = JSONArray(downloadPyResult)

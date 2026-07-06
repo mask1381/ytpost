@@ -261,7 +261,23 @@
                     style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
                     android:text="Export Logs for Bug Report" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnUploadCookies"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Upload cookies.txt" />
+
+                <TextView
+                    android:id="@+id/tvCookieStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="No cookie file set"
+                    android:textAppearance="?attr/textAppearanceLabelSmall" />
 
                 <TextView
                     android:id="@+id/tvVersionInfo"

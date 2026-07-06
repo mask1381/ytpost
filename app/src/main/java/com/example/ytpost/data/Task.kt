@@ -21,6 +21,11 @@ data class Task(
     val customCaption: String? = null,
     val progress: Int = 0,
     
+    // v2.1 Advanced Flags
+    val writeSubs: Boolean = false,
+    val audioOnly: Boolean = false,
+    val customArgs: String? = null,
+    
     // Retry logic
     val retryCount: Int = 0,
     val lastRetryTimestamp: Long = 0

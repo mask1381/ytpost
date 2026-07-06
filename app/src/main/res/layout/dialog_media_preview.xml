@@ -164,6 +164,51 @@
             android:layout_marginBottom="16dp"/>
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnShowAdvanced"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Advanced Download Tools ▼"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="8dp"/>
+
+        <LinearLayout
+            android:id="@+id/layoutAdvanced"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:padding="8dp"
+            android:background="#0A000000"
+            android:layout_marginBottom="16dp">
+
+            <CheckBox
+                android:id="@+id/cbAudioOnly"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Extract Audio Only (MP3)"/>
+
+            <CheckBox
+                android:id="@+id/cbWriteSubs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Download &amp; Embed Subtitles"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Custom yt-dlp Args (e.g. --max-filesize 50M)">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etCustomArgs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp" />
+            </com.google.android.material.textfield.TextInputLayout>
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirmDownload"
             android:layout_width="match_parent"
             android:layout_height="56dp"

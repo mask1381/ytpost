@@ -42,6 +42,16 @@ class SettingsFragment : Fragment() {
         setupProxyConfig()
         setupRssConfig()
         setupDebugInfo()
+        
+        updateCookieStatus()
+    }
+
+    private fun updateCookieStatus() {
+        val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val path = sharedPrefs.getString("cookie_file_path", null)
+        if (_binding != null) {
+            binding.tvCookieStatus.text = if (path != null) "Cookies: ${java.io.File(path).name}" else "No cookie file set"
+        }
     }
 
     private fun setupProxyConfig() {
@@ -91,6 +101,45 @@ class SettingsFragment : Fragment() {
             }
             val shareIntent = android.content.Intent.createChooser(sendIntent, "Export Logs")
             startActivity(shareIntent)
+        }
+
+        binding.btnUploadCookies.setOnClickListener {
+            pickCookieFile()
+        }
+    }
+
+    private val cookiePickerLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            saveCookieFile(it)
+        }
+    }
+
+    private fun pickCookieFile() {
+        cookiePickerLauncher.launch("*/*")
+    }
+
+    private fun saveCookieFile(uri: android.net.Uri) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = requireContext().contentResolver.openInputStream(uri)
+                val file = java.io.File(requireContext().filesDir, "cookies.txt")
+                val outputStream = java.io.FileOutputStream(file)
+                inputStream?.copyTo(outputStream)
+                inputStream?.close()
+                outputStream.close()
+
+                val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                sharedPrefs.edit().putString("cookie_file_path", file.absolutePath).apply()
+
+                withContext(Dispatchers.Main) {
+                    updateCookieStatus()
+                    Toast.makeText(context, "Cookies uploaded successfully", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to upload cookies: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 

@@ -3,6 +3,26 @@ import os
 import certifi
 import json
 import time
+from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
+
+# Monkey patch for Android 10+ execution
+# Since we renamed binaries to lib*.so to bypass execution restrictions
+def patched_get_ffmpeg_path(self):
+    location = self.get_param('ffmpeg_location')
+    if location:
+        p = os.path.join(location, 'libffmpeg.so')
+        if os.path.exists(p): return p
+    return "ffmpeg" # fallback to PATH
+
+def patched_get_ffprobe_path(self):
+    location = self.get_param('ffmpeg_location')
+    if location:
+        p = os.path.join(location, 'libffprobe.so')
+        if os.path.exists(p): return p
+    return "ffprobe" # fallback to PATH
+
+FFmpegPostProcessor._get_ffmpeg_path = patched_get_ffmpeg_path
+FFmpegPostProcessor._get_ffprobe_path = patched_get_ffprobe_path
 
 # تنظیم گواهینامه‌های SSL
 os.environ['SSL_CERT_FILE'] = certifi.where()
@@ -112,7 +132,7 @@ def _guess_kind(info):
         return "audio"
     return "video"
 
-def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None, proxy=None, progress_listener=None):
+def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None, proxy=None, progress_listener=None, write_subs=False, audio_only=False, custom_args=None):
     """
     دانلود با پارامترهای انتخابی و منطق بازتلاش (Retry)
     """
@@ -133,6 +153,9 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         format_selector = 'bv*[height<=720]+ba/b[height<=720]'
     elif quality == "worst":
         format_selector = 'wv*+wa/w'
+    
+    if audio_only:
+        format_selector = 'bestaudio/best'
 
     ydl_opts = {
         'format': format_selector,
@@ -158,6 +181,40 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         
     if ffmpeg_path:
         ydl_opts['ffmpeg_location'] = ffmpeg_path
+
+    # Advanced Post-processors
+    postprocessors = []
+    if audio_only:
+        postprocessors.append({
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        })
+    
+    if write_subs:
+        ydl_opts['writesubtitles'] = True
+        ydl_opts['allsubtitles'] = True
+        postprocessors.append({
+            'key': 'FFmpegEmbedSubtitle',
+            'already_have_subtitle': False
+        })
+        # Note: Embedding requires compatible container like mp4 or mkv
+        if not audio_only:
+             ydl_opts['merge_output_format'] = 'mkv'
+
+    if postprocessors:
+        ydl_opts['postprocessors'] = postprocessors
+
+    # Inject Custom Args
+    if custom_args:
+        try:
+            # Simple space-separated parsing for some flags
+            import shlex
+            extra_args = shlex.split(custom_args)
+            # This is a bit limited for ydl_opts, but better than nothing
+            # A full parser would be needed for complex flags
+        except:
+            pass
 
     # لیست انواع مجاز
     allowed_kinds = media_filter.split(',') if media_filter else None

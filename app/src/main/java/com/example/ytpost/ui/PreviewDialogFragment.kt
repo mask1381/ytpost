@@ -14,7 +14,7 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
     private var _binding: DialogMediaPreviewBinding? = null
     private val binding get() = _binding!!
 
-    private var onConfirm: ((String, Boolean, String?, String?, Boolean) -> Unit)? = null
+    private var onConfirm: ((String, Boolean, String?, String?, Boolean, Boolean, Boolean, String?, Boolean) -> Unit)? = null
 
     companion object {
         fun newInstance(previewJson: String, sourceUrl: String): PreviewDialogFragment {
@@ -74,6 +74,16 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
             binding.layoutCarouselOptions.visibility = View.VISIBLE
         }
 
+        binding.btnShowAdvanced.setOnClickListener {
+            if (binding.layoutAdvanced.visibility == View.VISIBLE) {
+                binding.layoutAdvanced.visibility = View.GONE
+                binding.btnShowAdvanced.text = "Advanced Download Tools ▼"
+            } else {
+                binding.layoutAdvanced.visibility = View.VISIBLE
+                binding.btnShowAdvanced.text = "Advanced Download Tools ▲"
+            }
+        }
+
         binding.btnConfirmDownload.setOnClickListener {
             val quality = when (binding.rgQuality.checkedRadioButtonId) {
                 binding.rbMedium.id -> "medium"
@@ -83,6 +93,12 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
             val onlyFirst = binding.cbOnlyFirstItem.isChecked
             val useCaption = binding.cbIncludeCaption.isChecked
             val editedCaption = if (useCaption) binding.etCaption.text.toString() else null
+            
+            // Advanced Flags
+            val audioOnly = binding.cbAudioOnly.isChecked
+            val writeSubs = binding.cbWriteSubs.isChecked
+            val customArgs = binding.etCustomArgs.text.toString().trim().ifEmpty { null }
+            
             val saveDefault = binding.cbSaveDefault.isChecked
             
             val filters = mutableListOf<String>()
@@ -91,12 +107,12 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
             if (binding.cbAudio.isChecked) filters.add("audio")
             val mediaFilter = if (filters.size == 3) null else filters.joinToString(",")
 
-            onConfirm?.invoke(quality, onlyFirst, mediaFilter, editedCaption, saveDefault)
+            onConfirm?.invoke(quality, onlyFirst, mediaFilter, editedCaption, audioOnly, writeSubs, useCaption, customArgs, saveDefault)
             dismiss()
         }
     }
 
-    fun setOnConfirmListener(listener: (String, Boolean, String?, String?, Boolean) -> Unit) {
+    fun setOnConfirmListener(listener: (String, Boolean, String?, String?, Boolean, Boolean, Boolean, String?, Boolean) -> Unit) {
         onConfirm = listener
     }
 
