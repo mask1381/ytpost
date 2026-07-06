@@ -88,9 +88,9 @@ class PostFragment : Fragment() {
                         return@withContext
                     }
 
-                    val dialog = PreviewDialogFragment.newInstance(previewJson)
-                    dialog.setOnConfirmListener { quality, onlyFirst, filter, saveDefault ->
-                        saveTask(link, destination, quality, onlyFirst, filter, saveDefault)
+                    val dialog = PreviewDialogFragment.newInstance(previewJson, link)
+                    dialog.setOnConfirmListener { quality, onlyFirst, filter, customCaption, saveDefault ->
+                        saveTask(link, destination, quality, onlyFirst, filter, customCaption, saveDefault)
                     }
                     dialog.show(parentFragmentManager, "preview")
                 }
@@ -105,7 +105,7 @@ class PostFragment : Fragment() {
         }
     }
 
-    private fun saveTask(link: String, destination: String, quality: String, onlyFirst: Boolean, filter: String?, saveDefault: Boolean) {
+    private fun saveTask(link: String, destination: String, quality: String, onlyFirst: Boolean, filter: String?, customCaption: String?, saveDefault: Boolean) {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             if (saveDefault) {
                 val pref = DownloadPreferenceProfile(
@@ -113,7 +113,8 @@ class PostFragment : Fragment() {
                     sourceIdentifier = null,
                     defaultQuality = quality,
                     includeCarousel = !onlyFirst,
-                    allowedMediaTypes = filter ?: "video,photo,audio"
+                    allowedMediaTypes = filter ?: "video,photo,audio",
+                    useDefaultCaption = customCaption != null
                 )
                 database.downloadPreferenceDao().insert(pref)
             }
@@ -124,7 +125,9 @@ class PostFragment : Fragment() {
                 status = "queued",
                 quality = quality,
                 onlyFirstItem = onlyFirst,
-                mediaFilter = filter
+                mediaFilter = filter,
+                useDefaultCaption = customCaption != null,
+                customCaption = customCaption
             ))
             
             AppLogger.log("Manual post added with custom settings: $link")

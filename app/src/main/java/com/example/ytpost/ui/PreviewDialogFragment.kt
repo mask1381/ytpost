@@ -14,13 +14,14 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
     private var _binding: DialogMediaPreviewBinding? = null
     private val binding get() = _binding!!
 
-    private var onConfirm: ((String, Boolean, String?, Boolean) -> Unit)? = null
+    private var onConfirm: ((String, Boolean, String?, String?, Boolean) -> Unit)? = null
 
     companion object {
-        fun newInstance(previewJson: String): PreviewDialogFragment {
+        fun newInstance(previewJson: String, sourceUrl: String): PreviewDialogFragment {
             val fragment = PreviewDialogFragment()
             val args = Bundle()
             args.putString("preview_json", previewJson)
+            args.putString("source_url", sourceUrl)
             fragment.arguments = args
             return fragment
         }
@@ -52,6 +53,23 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
             Glide.with(this).load(thumbUrl).into(binding.ivThumbnail)
         }
 
+        // Generate default caption
+        val sourceUrl = arguments?.getString("source_url") ?: ""
+        val title = json.optString("title", "No Title")
+        
+        try {
+            val py = com.chaquo.python.Python.getInstance()
+            val captionBuilder = py.getModule("caption_builder")
+            val defaultCaption = captionBuilder.callAttr("build_caption", title, sourceUrl).toString()
+            binding.etCaption.setText(defaultCaption)
+        } catch (e: Exception) {
+            binding.etCaption.setText(title)
+        }
+
+        binding.cbIncludeCaption.setOnCheckedChangeListener { _, isChecked ->
+            binding.tilCaption.isEnabled = isChecked
+        }
+
         if (type == "carousel") {
             binding.layoutCarouselOptions.visibility = View.VISIBLE
         }
@@ -63,6 +81,8 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
                 else -> "best"
             }
             val onlyFirst = binding.cbOnlyFirstItem.isChecked
+            val useCaption = binding.cbIncludeCaption.isChecked
+            val editedCaption = if (useCaption) binding.etCaption.text.toString() else null
             val saveDefault = binding.cbSaveDefault.isChecked
             
             val filters = mutableListOf<String>()
@@ -71,12 +91,12 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
             if (binding.cbAudio.isChecked) filters.add("audio")
             val mediaFilter = if (filters.size == 3) null else filters.joinToString(",")
 
-            onConfirm?.invoke(quality, onlyFirst, mediaFilter, saveDefault)
+            onConfirm?.invoke(quality, onlyFirst, mediaFilter, editedCaption, saveDefault)
             dismiss()
         }
     }
 
-    fun setOnConfirmListener(listener: (String, Boolean, String?, Boolean) -> Unit) {
+    fun setOnConfirmListener(listener: (String, Boolean, String?, String?, Boolean) -> Unit) {
         onConfirm = listener
     }
 

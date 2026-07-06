@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.chaquo.python.Python
+import com.example.ytpost.AppLogger
 import com.example.ytpost.ProxyManager
 import com.example.ytpost.TelegramSessionManager
 import com.example.ytpost.data.AppDatabase
@@ -80,6 +81,17 @@ class SettingsFragment : Fragment() {
                 }
             }
         }
+
+        binding.btnExportLogs.setOnClickListener {
+            val logsText = AppLogger.logs.value
+            val sendIntent = android.content.Intent().apply {
+                action = android.content.Intent.ACTION_SEND
+                putExtra(android.content.Intent.EXTRA_TEXT, logsText)
+                type = "text/plain"
+            }
+            val shareIntent = android.content.Intent.createChooser(sendIntent, "Export Logs")
+            startActivity(shareIntent)
+        }
     }
 
     private fun setupTelegramConfig() {
@@ -109,6 +121,9 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+
+            // Persistence fix: save credentials before logging in
+            sessionManager.saveTelegramCredentials(apiId, apiHash, phone)
 
             binding.tvLoginStatus.text = "Status: Connecting..."
 
@@ -166,6 +181,7 @@ class SettingsFragment : Fragment() {
                     else -> "best"
                 }
                 val includeCarousel = binding.cbRssCarousel.isChecked
+                val includeCaption = binding.cbRssCaption.isChecked
 
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                     val profile = DownloadPreferenceProfile(
@@ -173,7 +189,8 @@ class SettingsFragment : Fragment() {
                         sourceIdentifier = source,
                         defaultQuality = quality,
                         includeCarousel = includeCarousel,
-                        allowedMediaTypes = "video,photo,audio"
+                        allowedMediaTypes = "video,photo,audio",
+                        useDefaultCaption = includeCaption
                     )
                     database.downloadPreferenceDao().insert(profile)
 

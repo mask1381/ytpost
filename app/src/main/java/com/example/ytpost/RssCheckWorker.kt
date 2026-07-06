@@ -42,7 +42,8 @@ class RssCheckWorker(context: Context, params: WorkerParameters) : CoroutineWork
                                 status = "queued",
                                 quality = pref?.defaultQuality ?: "best",
                                 onlyFirstItem = !(pref?.includeCarousel ?: true),
-                                mediaFilter = pref?.allowedMediaTypes
+                                mediaFilter = pref?.allowedMediaTypes,
+                                useDefaultCaption = pref?.useDefaultCaption ?: true
                             ))
                         }
                         database.processedItemDao().insert(ProcessedItem(url = itemUrl))

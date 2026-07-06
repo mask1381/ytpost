@@ -17,6 +17,9 @@ data class Task(
     val quality: String = "best",
     val onlyFirstItem: Boolean = false,
     val mediaFilter: String? = null, // comma separated like "video,photo" or single
+    val useDefaultCaption: Boolean = true,
+    val customCaption: String? = null,
+    val progress: Int = 0,
     
     // Retry logic
     val retryCount: Int = 0,

@@ -31,12 +31,21 @@ def _parse_proxy(proxy_str):
     except:
         return None
 
-def upload_to_telegram(session_str, api_id, api_hash, file_paths_json, caption, destination, proxy=None):
+def upload_to_telegram(session_str, api_id, api_hash, file_paths_json, caption, destination, proxy=None, progress_listener=None):
     """
     آپلود فایل یا لیستی از فایل‌ها (Media Group) به مقصد مشخص شده
     proxy: رشته پورکسی شناسایی شده (مثلاً socks5h://127.0.0.1:10808)
     """
     _ensure_event_loop()
+    
+    def progress_callback(current, total):
+        if progress_listener and total > 0:
+            try:
+                percent = int((current / total) * 100)
+                progress_listener.onProgress(percent)
+            except:
+                pass
+
     try:
         # پارس کردن مسیر فایل‌ها
         try:
@@ -64,9 +73,9 @@ def upload_to_telegram(session_str, api_id, api_hash, file_paths_json, caption, 
 
         with TelegramClient(StringSession(session_str), int(api_id), api_hash, proxy=client_proxy) as client:
             if len(files_to_send) == 1:
-                client.send_file(target, files_to_send[0], caption=caption)
+                client.send_file(target, files_to_send[0], caption=caption, progress_callback=progress_callback)
             elif len(files_to_send) > 1:
-                client.send_file(target, files_to_send, caption=caption)
+                client.send_file(target, files_to_send, caption=caption, progress_callback=progress_callback)
             else:
                 return "ERROR: No files to upload"
         return "OK"

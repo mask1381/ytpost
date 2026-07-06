@@ -14,7 +14,7 @@ import androidx.room.RoomDatabase
  */
 @Database(
     entities = [Task::class, ProcessedItem::class, DownloadPreferenceProfile::class], 
-    version = 4, 
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

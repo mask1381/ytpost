@@ -112,12 +112,21 @@ def _guess_kind(info):
         return "audio"
     return "video"
 
-def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None, proxy=None):
+def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None, proxy=None, progress_listener=None):
     """
     دانلود با پارامترهای انتخابی و منطق بازتلاش (Retry)
     """
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
+
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            try:
+                p = d.get('_percent_str', '0%').replace('%', '').strip()
+                if progress_listener:
+                    progress_listener.onProgress(int(float(p)))
+            except:
+                pass
 
     format_selector = 'bv*+ba/b'
     if quality == "medium":
@@ -134,6 +143,7 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         'proxy': proxy,
         'quiet': False,
         'no_warnings': False,
+        'progress_hooks': [progress_hook],
         'extractor_args': {
             'youtube': {
                 'player_client': ['tv', 'web_safari', 'android'],

@@ -44,6 +44,17 @@ class TaskAdapter(private val onDeleteClick: (Task) -> Unit) : ListAdapter<Task,
             binding.chipStatus.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor(color))
             binding.chipStatus.setTextColor(Color.WHITE)
             
+            // Progress Logic
+            if (task.status.lowercase() == "downloading" || task.status.lowercase() == "uploading") {
+                binding.progressIndicator.visibility = View.VISIBLE
+                binding.tvProgressPercent.visibility = View.VISIBLE
+                binding.progressIndicator.progress = task.progress
+                binding.tvProgressPercent.text = "${task.progress}%"
+            } else {
+                binding.progressIndicator.visibility = View.GONE
+                binding.tvProgressPercent.visibility = View.GONE
+            }
+            
             if (!task.errorMessage.isNullOrEmpty()) {
                 binding.tvError.visibility = View.VISIBLE
                 binding.tvError.text = task.errorMessage

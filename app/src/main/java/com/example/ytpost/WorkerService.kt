@@ -53,11 +53,25 @@ class WorkerService : Service() {
         }
     }
 
+    private fun createProgressListener(task: Task) = object : ProgressListener {
+        private var lastUpdate = 0L
+        override fun onProgress(progress: Int) {
+            val now = System.currentTimeMillis()
+            // Throttling updates to database to avoid excessive IO
+            if (now - lastUpdate > 1000) { 
+                lastUpdate = now
+                serviceScope.launch(Dispatchers.IO) {
+                    database.taskDao().update(task.copy(progress = progress))
+                }
+            }
+        }
+    }
+
     private suspend fun processTask(task: Task) {
         AppLogger.log("Processing Task: ${task.sourceUrl} (Attempt: ${task.retryCount + 1})")
         updateNotification("Processing: ${task.sourceUrl}")
         
-        database.taskDao().update(task.copy(status = "downloading"))
+        database.taskDao().update(task.copy(status = "downloading", progress = 0))
         
         var currentProxy = ProxyManager.detectProxy()
         
@@ -95,6 +109,7 @@ class WorkerService : Service() {
         // 1. Download
         AppLogger.log("Downloading... (Proxy: ${proxy ?: "None"})")
         val ffmpegPath = FfmpegManager.getFfmpegPath(this@WorkerService)
+        val progressListener = createProgressListener(task)
         
         val downloadPyResult = downloader.callAttr(
             "download_video", 
@@ -105,7 +120,8 @@ class WorkerService : Service() {
             task.mediaFilter,
             null, // cookie_file_path
             ffmpegPath,
-            proxy
+            proxy,
+            progressListener
         ).toString()
         
         val downloadListJson = JSONArray(downloadPyResult)
@@ -133,11 +149,17 @@ class WorkerService : Service() {
         }
 
         // 2. Build Caption
-        val finalCaption = captionBuilder.callAttr("build_caption", firstTitle, task.sourceUrl).toString()
+        val finalCaption = if (task.customCaption != null) {
+            task.customCaption
+        } else if (task.useDefaultCaption) {
+            captionBuilder.callAttr("build_caption", firstTitle, task.sourceUrl).toString()
+        } else {
+            ""
+        }
         
         // 3. Upload
         AppLogger.log("Uploading to Telegram...")
-        database.taskDao().update(task.copy(status = "uploading"))
+        database.taskDao().update(task.copy(status = "uploading", progress = 0))
         
         val sessionStr = sessionManager.getSessionString()
         val apiId = sessionManager.getApiId()
@@ -157,7 +179,8 @@ class WorkerService : Service() {
             filePathsJson, 
             finalCaption,
             task.destination,
-            proxy
+            proxy,
+            progressListener
         ).toString()
         
         if (uploadResult.startsWith("ERROR")) {
@@ -173,7 +196,7 @@ class WorkerService : Service() {
             File(path).delete()
         }
         
-        database.taskDao().update(task.copy(status = "done", errorMessage = null))
+        database.taskDao().update(task.copy(status = "done", errorMessage = null, progress = 100))
         AppLogger.log("Task finished: ${task.sourceUrl}")
         showCompletionNotification("Task Completed", "Finished processing ${task.sourceUrl}")
     }

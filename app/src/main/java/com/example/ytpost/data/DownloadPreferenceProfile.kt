@@ -11,6 +11,7 @@ data class DownloadPreferenceProfile(
     val defaultQuality: String = "best", // best, medium, worst
     val includeCarousel: Boolean = true,
     val allowedMediaTypes: String = "video,photo,audio", // comma-separated
+    val useDefaultCaption: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
