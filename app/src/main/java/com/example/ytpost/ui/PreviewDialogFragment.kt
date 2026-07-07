@@ -102,10 +102,10 @@ class PreviewDialogFragment : BottomSheetDialogFragment() {
             val saveDefault = binding.cbSaveDefault.isChecked
             
             val filters = mutableListOf<String>()
-            if (binding.cbVideo.isChecked) filters.add("video")
-            if (binding.cbPhoto.isChecked) filters.add("photo")
-            if (binding.cbAudio.isChecked) filters.add("audio")
-            val mediaFilter = if (filters.size == 3) null else filters.joinToString(",")
+            if (binding.chipVideo.isChecked) filters.add("video")
+            if (binding.chipPhoto.isChecked) filters.add("photo")
+            if (binding.chipAudio.isChecked) filters.add("audio")
+            val mediaFilter = if (filters.isEmpty() || filters.size == 3) null else filters.joinToString(",")
 
             onConfirm?.invoke(quality, onlyFirst, mediaFilter, editedCaption, audioOnly, writeSubs, useCaption, customArgs, saveDefault)
             dismiss()

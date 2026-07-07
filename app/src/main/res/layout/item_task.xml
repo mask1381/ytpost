@@ -65,7 +65,9 @@
             android:visibility="gone"
             app:layout_constraintEnd_toStartOf="@+id/tvProgressPercent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/chipStatus" />
+            app:layout_constraintTop_toBottomOf="@+id/chipStatus"
+            app:trackThickness="6dp"
+            app:trackCornerRadius="3dp" />
 
         <TextView
             android:id="@+id/tvProgressPercent"

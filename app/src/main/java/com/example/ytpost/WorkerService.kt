@@ -57,18 +57,22 @@ class WorkerService : Service() {
         private var lastUpdate = 0L
         override fun onProgress(progress: Int) {
             val now = System.currentTimeMillis()
-            // Throttling updates to database to avoid excessive IO
-            if (now - lastUpdate > 1000) { 
+            // Reduced throttling from 1000ms to 250ms for smoother UI
+            // Always update on 0, 100 or every 250ms
+            if (now - lastUpdate > 250 || progress == 100 || progress == 0) {
                 lastUpdate = now
                 serviceScope.launch(Dispatchers.IO) {
-                    database.taskDao().update(task.copy(progress = progress))
+                    val currentTask = database.taskDao().getTaskById(task.id)
+                    if (currentTask != null) {
+                        database.taskDao().update(currentTask.copy(progress = progress))
+                    }
                 }
             }
         }
     }
 
     private suspend fun processTask(task: Task) {
-        AppLogger.log("Processing Task: ${task.sourceUrl} (Attempt: ${task.retryCount + 1})")
+        AppLogger.logProcess("Processing Task: ${task.sourceUrl} (Attempt: ${task.retryCount + 1})")
         updateNotification("Processing: ${task.sourceUrl}")
         
         database.taskDao().update(task.copy(status = "downloading", progress = 0))
@@ -86,7 +90,7 @@ class WorkerService : Service() {
                 errorMsg.contains("connection", ignoreCase = true) || 
                 errorMsg.contains("reloaded", ignoreCase = true))) {
                 
-                AppLogger.log("Task failed with proxy. Retrying immediately without proxy as fallback...")
+                AppLogger.logWarning("Task failed with proxy. Retrying immediately without proxy as fallback...")
                 try {
                     executeTaskLogic(task, null)
                 } catch (e2: Exception) {
@@ -109,7 +113,7 @@ class WorkerService : Service() {
         val uploader = py.getModule("uploader")
 
         // 1. Download
-        AppLogger.log("Downloading... (Proxy: ${proxy ?: "None"})")
+        AppLogger.logProcess("Downloading... (Proxy: ${proxy ?: "None"})")
         val ffmpegPath = FfmpegManager.getFfmpegPath(this@WorkerService)
         
         // Diagnostic test for ffprobe
@@ -178,7 +182,7 @@ class WorkerService : Service() {
         }
         
         // 3. Upload
-        AppLogger.log("Uploading to Telegram...")
+        AppLogger.logProcess("Uploading to Telegram...")
         database.taskDao().update(task.copy(status = "uploading", progress = 0))
         
         val sessionStr = sessionManager.getSessionString()
@@ -217,13 +221,13 @@ class WorkerService : Service() {
         }
         
         database.taskDao().update(task.copy(status = "done", errorMessage = null, progress = 100))
-        AppLogger.log("Task finished: ${task.sourceUrl}")
+        AppLogger.logSuccess("Task finished: ${task.sourceUrl}")
         showCompletionNotification("Task Completed", "Finished processing ${task.sourceUrl}")
     }
 
     private suspend fun handleRecoverableError(task: Task, e: Exception) {
         val nextRetry = task.retryCount + 1
-        AppLogger.log("Recoverable Error: ${e.message}. Retry $nextRetry/3")
+        AppLogger.logWarning("Recoverable Error: ${e.message}. Retry $nextRetry/3")
         database.taskDao().update(task.copy(
             status = "failed", 
             errorMessage = "Retryable: ${e.message}",
@@ -233,7 +237,7 @@ class WorkerService : Service() {
     }
 
     private suspend fun handleFatalError(task: Task, e: Exception) {
-        AppLogger.log("Fatal Error: ${e.message}")
+        AppLogger.logError("Fatal Error: ${e.message}")
         database.taskDao().update(task.copy(
             status = "failed", 
             errorMessage = e.message,

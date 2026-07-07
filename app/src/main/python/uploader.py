@@ -39,9 +39,10 @@ def upload_to_telegram(session_str, api_id, api_hash, file_paths_json, caption, 
     _ensure_event_loop()
     
     def progress_callback(current, total):
-        if progress_listener and total > 0:
+        if progress_listener and total and total > 0:
             try:
                 percent = int((current / total) * 100)
+                if percent > 99: percent = 99
                 progress_listener.onProgress(percent)
             except:
                 pass
@@ -73,8 +74,15 @@ def upload_to_telegram(session_str, api_id, api_hash, file_paths_json, caption, 
 
         with TelegramClient(StringSession(session_str), int(api_id), api_hash, proxy=client_proxy) as client:
             if len(files_to_send) == 1:
-                # supports_streaming enables the video player in Telegram
-                client.send_file(target, files_to_send[0], caption=caption, progress_callback=progress_callback, supports_streaming=True)
+                file_path = files_to_send[0]
+                # Check if it's an audio file
+                ext = file_path.lower()
+                is_audio = ext.endswith('.mp3') or ext.endswith('.m4a') or ext.endswith('.opus') or ext.endswith('.wav') or ext.endswith('.ogg')
+                
+                if is_audio:
+                    client.send_file(target, file_path, caption=caption, progress_callback=progress_callback)
+                else:
+                    client.send_file(target, file_path, caption=caption, progress_callback=progress_callback, supports_streaming=True)
             elif len(files_to_send) > 1:
                 client.send_file(target, files_to_send, caption=caption, progress_callback=progress_callback)
             else:

@@ -43,6 +43,8 @@ class PostFragment : Fragment() {
         val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         binding.etDestination.setText(sharedPrefs.getString("default_destination", ""))
 
+        observeActiveTask()
+
         binding.btnSendLink.setOnClickListener {
             val link = binding.etManualLink.text.toString().trim()
             val destination = binding.etDestination.text.toString().trim()
@@ -53,6 +55,10 @@ class PostFragment : Fragment() {
             } else {
                 Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
             }
+        }
+
+        binding.btnShowLogs.setOnClickListener {
+            LogsDialogFragment.newInstance().show(parentFragmentManager, "logs")
         }
     }
 
@@ -157,6 +163,31 @@ class PostFragment : Fragment() {
         }
         
         binding.tvWorkerStatus.text = "Active"
+    }
+
+    private fun observeActiveTask() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            database.taskDao().getAllTasks().collect { tasks ->
+                val activeTask = tasks.find { it.status == "downloading" || it.status == "uploading" }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    if (activeTask != null) {
+                        binding.cardLiveActivity.visibility = View.VISIBLE
+                        val status = activeTask.status.lowercase()
+                        val statusText = when {
+                            status.contains("download") -> "📥 Downloading..."
+                            status.contains("upload") -> "📤 Uploading..."
+                            else -> "${activeTask.status.replaceFirstChar { it.uppercase() }}..."
+                        }
+                        binding.tvLiveStatus.text = statusText
+                        binding.liveProgress.progress = activeTask.progress
+                        binding.tvLivePercent.text = "${activeTask.progress}%"
+                    } else {
+                        binding.cardLiveActivity.visibility = View.GONE
+                    }
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {

@@ -127,34 +127,45 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Filter Content Type"
+            android:text="Select Content Types"
             android:textStyle="bold"
-            android:layout_marginBottom="4dp"/>
+            android:layout_marginBottom="8dp"/>
 
-        <LinearLayout
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/cgFilter"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
-            <CheckBox
-                android:id="@+id/cbVideo"
+            android:layout_marginBottom="16dp"
+            app:chipSpacingHorizontal="8dp">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipVideo"
+                style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Video"
-                android:checked="true"/>
-            <CheckBox
-                android:id="@+id/cbPhoto"
+                android:checked="true"
+                app:chipIcon="@android:drawable/presence_video_online"/>
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipPhoto"
+                style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Photo"
-                android:checked="true"/>
-            <CheckBox
-                android:id="@+id/cbAudio"
+                android:text="Photos"
+                android:checked="true"
+                app:chipIcon="@android:drawable/ic_menu_gallery"/>
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipAudio"
+                style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Audio"
-                android:checked="true"/>
-        </LinearLayout>
+                android:checked="true"
+                app:chipIcon="@android:drawable/ic_lock_silent_mode"/>
+
+        </com.google.android.material.chip.ChipGroup>
 
         <CheckBox
             android:id="@+id/cbSaveDefault"

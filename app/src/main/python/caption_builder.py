@@ -19,6 +19,8 @@ def build_caption(title: str, source_url: str):
     hashtag_str = " ".join(hashtags)
     
     # فرمت نهایی
-    caption = f"🎬 {clean_title}\n\n{hashtag_str}\n\n📎 Join: https://t.me/genshinworldsensei"
+    # حذف بخش Join تکراری اگر از قبل در متن وجود داشته باشد
+    base_caption = f"🎬 {clean_title}\n\n{hashtag_str}".strip()
+    final_caption = f"{base_caption}"
     
-    return caption.strip()
+    return final_caption.strip()

@@ -18,12 +18,6 @@
         tools:layout="@layout/fragment_tasks" />
 
     <fragment
-        android:id="@+id/navigation_logs"
-        android:name="com.example.ytpost.ui.LogsFragment"
-        android:label="Logs"
-        tools:layout="@layout/fragment_logs" />
-
-    <fragment
         android:id="@+id/navigation_settings"
         android:name="com.example.ytpost.ui.SettingsFragment"
         android:label="Settings"

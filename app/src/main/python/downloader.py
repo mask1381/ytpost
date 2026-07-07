@@ -208,54 +208,88 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
     def progress_hook(d):
         if d['status'] == 'downloading':
             try:
-                p = d.get('_percent_str', '0%').replace('%', '').strip()
-                if progress_listener: progress_listener.onProgress(int(float(p)))
-            except: pass
+                # Use total_bytes or total_bytes_estimate
+                total = d.get('total_bytes') or d.get('total_bytes_estimate')
+                downloaded = d.get('downloaded_bytes', 0)
+                
+                if total:
+                    percent = int((downloaded / total) * 100)
+                    if progress_listener: progress_listener.onProgress(percent)
+                else:
+                    # Fallback to _percent_str if bytes are not available
+                    p_str = d.get('_percent_str', '0%').replace('%', '').strip()
+                    if progress_listener: progress_listener.onProgress(int(float(p_str)))
+            except Exception as e:
+                print(f"DEBUG: Progress hook error: {e}")
 
     format_selector = 'bv*+ba/b'
+    out_tmpl = os.path.join(download_dir, '%(title).80s.%(ext)s')
+    
     if quality == "medium": format_selector = 'bv*[height<=720]+ba/b[height<=720]'
     elif quality == "worst": format_selector = 'wv*+wa/w'
-    if audio_only: format_selector = 'bestaudio/best'
+    
+    if audio_only: 
+        format_selector = 'bestaudio/best'
+        # Back to .m4a but with proper cleanup to fix duration
+        out_tmpl = os.path.join(download_dir, '%(title).80s.m4a')
+    
+    # If it's Instagram or similar, the format selector might fail for photos.
+    # We add a fallback to 'all' formats if the video-specific ones fail.
+    if "instagram.com" in url or "facebook.com" in url:
+        format_selector = 'best/bestvideo+bestaudio'
 
     ydl_opts = {
         'format': format_selector,
-        'outtmpl': os.path.join(download_dir, '%(title).80s.%(ext)s'),
+        'outtmpl': out_tmpl,
         'restrictfilenames': True,
         'noplaylist': not (not only_first_item),
         'nocheckcertificate': True,
         'proxy': proxy,
         'progress_hooks': [progress_hook],
         'ffmpeg_location': ffmpeg_bin_str,
-        'keepvideo': True,
-        'merge_output_format': 'mp4',
+        'keepvideo': False,
         'socket_timeout': 30,
         'retries': 10,
         'fragment_retries': 10,
         'extractor_retries': 5,
         'source_address': None,
         'force_ipv4': True,
+        # Enable generic options for photos/non-video content
+        'ignoreerrors': True,
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'ios', 'tv'],
                 'skip': ['hls', 'dash']
+            },
+            'instagram': {
+                'get_video_url': [True],
             }
         }
     }
 
+    if not audio_only:
+        ydl_opts['merge_output_format'] = 'mp4'
+
     if cookie_file_path and os.path.exists(cookie_file_path):
         ydl_opts['cookiefile'] = cookie_file_path
 
-    postprocessors = []
     if audio_only:
-        postprocessors.append({'key': 'FFmpegExtractAudio', 'preferredcodec': 'opus', 'preferredquality': '192'})
-    
-    if write_subs:
-        ydl_opts['writesubtitles'] = True
-        postprocessors.append({'key': 'FFmpegEmbedSubtitle'})
-        if not audio_only: ydl_opts['merge_output_format'] = 'mkv'
+        # We don't use FFmpegExtractAudio which re-encodes.
+        # Instead, we just let it download the m4a/aac stream.
+        # This avoids "Encoder not found" error.
+        ydl_opts['postprocessors'] = []
+        ydl_opts['postprocessor_args'] = {
+            'ffmpeg': ['-c', 'copy', '-movflags', '+faststart'] # Faststart helps with duration metadata
+        }
+    else:
+        # Define empty or standard PPs if not audio_only
+        ydl_opts['postprocessors'] = []
 
-    if postprocessors:
-        ydl_opts['postprocessors'] = postprocessors
+    # Global options
+    ydl_opts.update({
+        'prefer_ffmpeg': True,
+        'ffmpeg_args': ['-hide_banner', '-nostats'],
+    })
 
     max_retries = 3
     for attempt in range(max_retries + 1):

@@ -1,150 +1,234 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="match_parent">
 
-        <!-- Welcome Header -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Welcome to YTPost"
-            android:textAppearance="?attr/textAppearanceHeadlineMedium"
-            android:textColor="?attr/colorPrimary"
-            android:layout_marginBottom="16dp"/>
-
-        <!-- Manual Post Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="2dp"
-            app:strokeWidth="0dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Quick Upload"
-                    android:textAppearance="?attr/textAppearanceTitleLarge"
-                    android:layout_marginBottom="20dp"/>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Destination (@username or ID)"
-                    android:layout_marginBottom="12dp"
-                    app:startIconDrawable="@android:drawable/ic_menu_myplaces">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etDestination"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Video/Photo Link"
-                    android:layout_marginBottom="20dp"
-                    app:startIconDrawable="@android:drawable/ic_menu_share">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etManualLink"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSendLink"
-                    android:layout_width="match_parent"
-                    android:layout_height="60dp"
-                    android:text="SEND TO TELEGRAM"
-                    android:textStyle="bold"
-                    app:cornerRadius="12dp"
-                    app:icon="@android:drawable/ic_menu_send" />
-
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Stats Card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Welcome Header -->
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="1dp"
-                app:strokeWidth="0dp">
+                android:text="YTPost v2.0"
+                android:textAppearance="?attr/textAppearanceHeadlineMedium"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Professional Media Downloader"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:alpha="0.7"
+                android:layout_marginBottom="24dp"/>
+
+            <!-- Live Activity Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardLiveActivity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:visibility="gone"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/colorPrimary"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant">
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp"
-                    android:gravity="center">
+                    android:padding="16dp">
                     <TextView
+                        android:id="@+id/tvLiveStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Worker Status"
-                        android:textAppearance="?attr/textAppearanceLabelMedium"/>
+                        android:text="Processing Task..."
+                        android:textAppearance="?attr/textAppearanceLabelLarge"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"/>
+                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                        android:id="@+id/liveProgress"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="4dp"
+                        app:trackThickness="8dp"
+                        app:trackCornerRadius="4dp"/>
                     <TextView
-                        android:id="@+id/tvWorkerStatus"
+                        android:id="@+id/tvLivePercent"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Running"
-                        android:textColor="#4CAF50"
-                        android:textStyle="bold"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"/>
+                        android:layout_gravity="end"
+                        android:text="0%"
+                        android:textAppearance="?attr/textAppearanceLabelSmall"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
+            <!-- Status Cards -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="1dp"
+                android:orientation="horizontal"
+                android:layout_marginBottom="24dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="?attr/colorOutlineVariant"
+                    app:strokeWidth="1dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:gravity="center">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Worker"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"/>
+                        <TextView
+                            android:id="@+id/tvWorkerStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Active"
+                            android:textColor="#4CAF50"
+                            android:textStyle="bold"
+                            android:textAppearance="?attr/textAppearanceTitleSmall"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="?attr/colorOutlineVariant"
+                    app:strokeWidth="1dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:gravity="center">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Telegram"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"/>
+                        <TextView
+                            android:id="@+id/tvLoginStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Connected"
+                            android:textColor="#4CAF50"
+                            android:textStyle="bold"
+                            android:textAppearance="?attr/textAppearanceTitleSmall"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Manual Post Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="4dp"
                 app:strokeWidth="0dp">
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp"
-                    android:gravity="center">
+                    android:padding="24dp">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Telegram"
-                        android:textAppearance="?attr/textAppearanceLabelMedium"/>
-                    <TextView
-                        android:id="@+id/tvLoginStatus"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Connected"
-                        android:textColor="#4CAF50"
+                        android:text="New Task"
+                        android:textAppearance="?attr/textAppearanceTitleLarge"
                         android:textStyle="bold"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"/>
+                        android:layout_marginBottom="24dp"/>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Target Channel/Chat ID"
+                        android:layout_marginBottom="16dp"
+                        app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etDestination"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Paste Link Here"
+                        android:layout_marginBottom="24dp"
+                        app:startIconDrawable="@android:drawable/ic_menu_share"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etManualLink"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSendLink"
+                        android:layout_width="match_parent"
+                        android:layout_height="64dp"
+                        android:text="ANALYZE &amp; POST"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.1"
+                        app:cornerRadius="16dp"
+                        app:icon="@android:drawable/ic_menu_send"
+                        app:iconGravity="textStart" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- Logs Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnShowLogs"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="View System Logs"
+                app:icon="@android:drawable/ic_menu_info_details" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Auto-worker will process tasks in the background."
+                android:textAlignment="center"
+                android:textAppearance="?attr/textAppearanceLabelSmall"
+                android:alpha="0.5"
+                android:layout_marginTop="24dp"/>
+
         </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

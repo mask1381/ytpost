@@ -9,10 +9,6 @@
         android:icon="@android:drawable/ic_menu_view"
         android:title="Tasks" />
     <item
-        android:id="@+id/navigation_logs"
-        android:icon="@android:drawable/ic_menu_info_details"
-        android:title="Logs" />
-    <item
         android:id="@+id/navigation_settings"
         android:icon="@android:drawable/ic_menu_manage"
         android:title="Settings" />
