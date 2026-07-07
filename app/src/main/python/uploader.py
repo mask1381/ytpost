@@ -73,7 +73,8 @@ def upload_to_telegram(session_str, api_id, api_hash, file_paths_json, caption, 
 
         with TelegramClient(StringSession(session_str), int(api_id), api_hash, proxy=client_proxy) as client:
             if len(files_to_send) == 1:
-                client.send_file(target, files_to_send[0], caption=caption, progress_callback=progress_callback)
+                # supports_streaming enables the video player in Telegram
+                client.send_file(target, files_to_send[0], caption=caption, progress_callback=progress_callback, supports_streaming=True)
             elif len(files_to_send) > 1:
                 client.send_file(target, files_to_send, caption=caption, progress_callback=progress_callback)
             else:

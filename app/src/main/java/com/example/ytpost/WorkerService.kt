@@ -110,6 +110,17 @@ class WorkerService : Service() {
         AppLogger.log("Downloading... (Proxy: ${proxy ?: "None"})")
         val ffmpegPath = FfmpegManager.getFfmpegPath(this@WorkerService)
         
+        // Diagnostic test for ffprobe
+        try {
+            val version = downloader.callAttr("get_ytdlp_version").toString()
+            AppLogger.log("YT-DLP Version: $version")
+
+            val testResult = downloader.callAttr("run_ffprobe_test", ffmpegPath).toString()
+            AppLogger.log("FFPROBE DIAGNOSTIC:\n$testResult")
+        } catch (e: Exception) {
+            AppLogger.log("DIAGNOSTIC TEST FAILED: ${e.message}")
+        }
+        
         val progressListener = createProgressListener(task)
         
         val sharedPrefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)

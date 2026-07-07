@@ -73,9 +73,11 @@ class PostFragment : Fragment() {
             try {
                 // Detect proxy for preview
                 val currentProxy = ProxyManager.detectProxy()
+                val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val cookiePath = sharedPrefs.getString("cookie_file_path", null)
                 
                 val previewJson = withTimeoutOrNull(35000) {
-                    downloader.callAttr("preview_media", link, null, currentProxy).toString()
+                    downloader.callAttr("preview_media", link, cookiePath, currentProxy).toString()
                 }
                 
                 withContext(Dispatchers.Main) {

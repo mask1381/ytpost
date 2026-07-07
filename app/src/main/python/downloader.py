@@ -10,6 +10,41 @@ from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
 # تنظیم گواهینامه‌های SSL
 os.environ['SSL_CERT_FILE'] = certifi.where()
 
+def run_ffprobe_test(native_lib_dir):
+    """
+    مستقیماً ffprobe را تست کرده و خروجی کامل را برمی‌گرداند.
+    """
+    if not native_lib_dir:
+        return "ERROR: native_lib_dir is None"
+        
+    ffprobe_path = os.path.join(native_lib_dir, 'libffprobe.so')
+    if not os.path.exists(ffprobe_path):
+        return f"ERROR: libffprobe.so not found at {ffprobe_path}"
+
+    custom_env = os.environ.copy()
+    # ست کردن مسیر کتابخانه‌های نیتیو برای پیدا کردن وابستگی‌ها (مثل libssl)
+    custom_env['LD_LIBRARY_PATH'] = native_lib_dir + ":" + custom_env.get('LD_LIBRARY_PATH', '')
+    
+    try:
+        # تست با آرگومان -version
+        proc = subprocess.run(
+            [ffprobe_path, '-version'],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=custom_env
+        )
+        
+        result = [
+            f"FFPROBE TEST RESULT (Code: {proc.returncode})",
+            f"STDOUT: {proc.stdout}",
+            f"STDERR: {proc.stderr}",
+            f"ENV LD_LIBRARY_PATH: {custom_env['LD_LIBRARY_PATH']}"
+        ]
+        return "\n".join(result)
+    except Exception as e:
+        return f"FFPROBE TEST CRASHED: {str(e)}"
+
 def apply_ffmpeg_patch(native_lib_dir):
     """
     Globally redirects all ffmpeg/ffprobe calls to the .so files in nativeLibraryDir.
@@ -21,34 +56,10 @@ def apply_ffmpeg_patch(native_lib_dir):
     ffmpeg_bin = os.path.join(native_lib_dir, 'libffmpeg.so')
     ffprobe_bin = os.path.join(native_lib_dir, 'libffprobe.so')
 
-    # Update environment for subprocesses to find .so dependencies
     custom_env = os.environ.copy()
     custom_env['LD_LIBRARY_PATH'] = native_lib_dir + ":" + custom_env.get('LD_LIBRARY_PATH', '')
 
-    # 1. Detailed Validation Test (subprocess call -version)
-    print(f"DIAGNOSTIC: Testing binaries in {native_lib_dir}")
-    for name, path in [("ffmpeg", ffmpeg_bin), ("ffprobe", ffprobe_bin)]:
-        try:
-            if not os.path.exists(path):
-                print(f"VALIDATION: {name} MISSING at {path}")
-                continue
-                
-            # Try to run with -version
-            proc = subprocess.run(
-                [path, '-version'], 
-                capture_output=True, 
-                text=True,
-                timeout=5,
-                env=custom_env
-            )
-            if proc.returncode == 0:
-                print(f"VALIDATION: {name} is EXECUTABLE.\nSTDOUT: {proc.stdout.splitlines()[0]}")
-            else:
-                print(f"VALIDATION: {name} FAILED (Code {proc.returncode}).\nSTDERR: {proc.stderr}\nSTDOUT: {proc.stdout}")
-        except Exception as e:
-            print(f"VALIDATION: {name} CRASHED: {str(e)}")
-
-    # 2. Patch FFmpegPostProcessor
+    # 1. Patch FFmpegPostProcessor
     FFmpegPostProcessor._get_ffmpeg_path = lambda self: ffmpeg_bin
     FFmpegPostProcessor._get_ffprobe_path = lambda self: ffprobe_bin
     
@@ -65,23 +76,26 @@ def apply_ffmpeg_patch(native_lib_dir):
             
     FFmpegPostProcessor.__init__ = patched_init
 
-    # 3. Patch subprocess.Popen globally to always include LD_LIBRARY_PATH
+    # 2. Patch subprocess.Popen globally to always include LD_LIBRARY_PATH
     orig_popen = subprocess.Popen
     def patched_popen(args, **kwargs):
-        if 'env' not in kwargs:
-            kwargs['env'] = custom_env
-        else:
-            kwargs['env']['LD_LIBRARY_PATH'] = native_lib_dir + ":" + kwargs['env'].get('LD_LIBRARY_PATH', '')
+        # Inject our environment
+        new_env = kwargs.get('env', os.environ).copy()
+        new_env['LD_LIBRARY_PATH'] = native_lib_dir + ":" + new_env.get('LD_LIBRARY_PATH', '')
+        kwargs['env'] = new_env
         
-        # Also handle cases where args[0] is just 'ffmpeg'
+        # Handle command replacement
         if isinstance(args, list) and len(args) > 0:
             if args[0] == 'ffmpeg': args[0] = ffmpeg_bin
             elif args[0] == 'ffprobe': args[0] = ffprobe_bin
+        elif isinstance(args, str):
+            if args.startswith('ffmpeg '): args = args.replace('ffmpeg ', ffmpeg_bin + ' ', 1)
+            elif args.startswith('ffprobe '): args = args.replace('ffprobe ', ffprobe_bin + ' ', 1)
             
         return orig_popen(args, **kwargs)
     subprocess.Popen = patched_popen
 
-    # 4. Patch shutil.which
+    # 3. Patch shutil.which
     orig_which = shutil.which
     def patched_which(cmd, mode=os.F_OK | os.X_OK, path=None):
         if cmd == 'ffmpeg': return ffmpeg_bin
@@ -99,13 +113,18 @@ def get_ytdlp_version():
         return f"Error: {str(e)}"
 
 def preview_media(url, cookie_file_path=None, proxy=None):
-    # Pinterest links often need a newer yt-dlp version or specific headers
     ydl_opts = {
         'proxy': proxy,
         'quiet': True,
         'nocheckcertificate': True,
         'no_warnings': True,
         'extract_flat': 'in_playlist',
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['web', 'android', 'ios'],
+                'skip': ['hls', 'dash']
+            }
+        }
     }
     if cookie_file_path and os.path.exists(cookie_file_path):
         ydl_opts['cookiefile'] = cookie_file_path
@@ -115,11 +134,17 @@ def preview_media(url, cookie_file_path=None, proxy=None):
             try:
                 info = ydl.extract_info(url, download=False)
             except Exception as e:
-                # Capture Pinterest raw response error if possible
                 err_msg = str(e)
-                if "json" in err_msg.lower() or "pinterest" in url.lower():
-                    print(f"EXTRACTOR ERROR on {url}: {err_msg}")
-                raise e
+                if "reloaded" in err_msg.lower() or "bot" in err_msg.lower() or "sign in" in err_msg.lower():
+                    time.sleep(2)
+                    ydl_opts['extractor_args']['youtube']['player_client'] = ['ios']
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
+                        info = ydl_retry.extract_info(url, download=False)
+                else:
+                    # Pinterest specific debug
+                    if "json" in err_msg.lower() or "pinterest" in url.lower() or "pin.it" in url.lower():
+                        print(f"DEBUG Pinterest Error: {err_msg}")
+                    raise e
                 
             result = {
                 'media_kind': 'video', 
@@ -146,9 +171,8 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
 
-    # 1. Apply patches and set environment
+    # Apply patches and set environment
     ffmpeg_bin_str = apply_ffmpeg_patch(ffmpeg_path)
-    print(f"YT-DLP Version: {get_ytdlp_version()}")
 
     def progress_hook(d):
         if d['status'] == 'downloading':
@@ -170,7 +194,15 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         'nocheckcertificate': True,
         'proxy': proxy,
         'progress_hooks': [progress_hook],
-        'ffmpeg_location': ffmpeg_bin_str
+        'ffmpeg_location': ffmpeg_bin_str,
+        'keepvideo': True,
+        'merge_output_format': 'mp4',  # Force MP4 for better Telegram compatibility
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['web', 'android', 'ios'],
+                'skip': ['hls', 'dash']
+            }
+        }
     }
 
     if cookie_file_path and os.path.exists(cookie_file_path):
@@ -190,7 +222,22 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            try:
+                info = ydl.extract_info(url, download=True)
+            except Exception as e:
+                err_msg = str(e)
+                if "reloaded" in err_msg.lower() or "bot" in err_msg.lower() or "sign in" in err_msg.lower():
+                    time.sleep(3)
+                    ydl_opts['extractor_args']['youtube']['player_client'] = ['ios']
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
+                        info = ydl_retry.extract_info(url, download=True)
+                else:
+                    raise e
+            
+            # Log the downloaded file path for debugging
+            temp_path = ydl.prepare_filename(info)
+            print(f"DEBUG: Downloaded temp file: {temp_path}")
+
             downloaded_files = []
             if 'entries' in info:
                 for entry in info['entries']:
@@ -205,7 +252,5 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
             return json.dumps(downloaded_files)
     except Exception as e:
         err_msg = str(e)
-        if "json" in err_msg.lower():
-             print(f"FATAL DOWNLOAD ERROR: {err_msg}")
-             # If possible, ytdlp internal logs will be printed to stdout/stderr captured by Chaquopy
+        print(f"DOWNLOAD ERROR: {err_msg}")
         return json.dumps([["ERROR", f"yt-dlp: {err_msg}"]])
