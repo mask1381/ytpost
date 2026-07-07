@@ -73,7 +73,9 @@ class WorkerService : Service() {
         
         database.taskDao().update(task.copy(status = "downloading", progress = 0))
         
-        var currentProxy = ProxyManager.detectProxy()
+        val sharedPrefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val useManualProxy = sharedPrefs.getBoolean("use_manual_proxy", false)
+        var currentProxy = if (useManualProxy) ProxyManager.detectProxy() else null
         
         try {
             executeTaskLogic(task, currentProxy)

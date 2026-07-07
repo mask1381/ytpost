@@ -55,6 +55,13 @@ class SettingsFragment : Fragment() {
     }
 
     private fun setupProxyConfig() {
+        val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        binding.swManualProxy.isChecked = sharedPrefs.getBoolean("use_manual_proxy", false)
+
+        binding.swManualProxy.setOnCheckedChangeListener { _, isChecked ->
+            sharedPrefs.edit().putBoolean("use_manual_proxy", isChecked).apply()
+        }
+
         binding.btnTestProxy.setOnClickListener {
             binding.tvProxyStatus.text = "Testing ports..."
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -70,22 +77,39 @@ class SettingsFragment : Fragment() {
 
     private fun setupDebugInfo() {
         binding.btnCheckVersion.setOnClickListener {
-            binding.tvVersionInfo.text = "Checking..."
+            binding.tvVersionInfo.text = "Checking versions & encoders..."
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val py = Python.getInstance()
                     val module = py.getModule("downloader")
-                    val version = module.callAttr("get_ytdlp_version").toString()
+                    
+                    val ytdlpVersion = module.callAttr("get_ytdlp_version").toString()
+                    
+                    val nativeDir = requireContext().applicationInfo.nativeLibraryDir
+                    val ffmpegPath = java.io.File(nativeDir, "libffmpeg.so").absolutePath
+                    val encodersInfo = module.callAttr("check_ffmpeg_encoders", ffmpegPath).toString()
+                    val ffprobeStatus = module.callAttr("run_ffprobe_test", nativeDir).toString()
                     
                     withContext(Dispatchers.Main) {
                         if (_binding == null) return@withContext
-                        binding.tvVersionInfo.text = "Version: $version"
-                        Toast.makeText(context, "yt-dlp version: $version", Toast.LENGTH_SHORT).show()
+                        binding.tvVersionInfo.text = "yt-dlp: $ytdlpVersion\nFFmpeg check completed."
+                        
+                        val displayInfo = "--- Versions ---\n" +
+                                "yt-dlp: $ytdlpVersion\n" +
+                                "ffprobe: $ffprobeStatus\n\n" +
+                                "--- FFmpeg Encoders ---\n" +
+                                encodersInfo
+
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("System Diagnostics")
+                            .setMessage(displayInfo)
+                            .setPositiveButton("OK", null)
+                            .show()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         if (_binding == null) return@withContext
-                        binding.tvVersionInfo.text = "Error checking version"
+                        binding.tvVersionInfo.text = "Error checking info"
                         Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }

@@ -72,8 +72,10 @@ class PostFragment : Fragment() {
 
             try {
                 // Detect proxy for preview
-                val currentProxy = ProxyManager.detectProxy()
                 val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val useManualProxy = sharedPrefs.getBoolean("use_manual_proxy", false)
+                val currentProxy = if (useManualProxy) ProxyManager.detectProxy() else null
+
                 val cookiePath = sharedPrefs.getString("cookie_file_path", null)
                 
                 val previewJson = withTimeoutOrNull(35000) {

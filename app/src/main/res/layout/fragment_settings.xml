@@ -124,6 +124,21 @@
                     android:text="Connection &amp; Proxy"
                     android:textAppearance="?attr/textAppearanceTitleMedium" />
 
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/swManualProxy"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:text="Use Manual Local Proxy"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="Enable this only if your VPN doesn't tunnel the app automatically (e.g. SOCKS5 on 10808)."
+                    android:textAppearance="?attr/textAppearanceLabelSmall" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnTestProxy"
                     style="@style/Widget.Material3.Button.TonalButton"

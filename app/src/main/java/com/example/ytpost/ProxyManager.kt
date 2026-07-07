@@ -15,15 +15,12 @@ object ProxyManager {
     )
 
     fun detectProxy(): String? {
-        AppLogger.log("Auto-detecting proxy...")
         for ((port, type) in PROXY_PORTS) {
             if (isPortOpen("127.0.0.1", port)) {
                 val proxyUrl = "$type://127.0.0.1:$port"
-                AppLogger.log("Proxy detected: $proxyUrl")
                 return proxyUrl
             }
         }
-        AppLogger.log("No local proxy detected. Using direct connection (or system VPN).")
         return null
     }
 

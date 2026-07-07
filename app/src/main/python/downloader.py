@@ -5,51 +5,34 @@ import json
 import time
 import subprocess
 import shutil
+import urllib.request
 from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
 
 # تنظیم گواهینامه‌های SSL
 os.environ['SSL_CERT_FILE'] = certifi.where()
 
-def run_ffprobe_test(native_lib_dir):
-    """
-    مستقیماً ffprobe را تست کرده و خروجی کامل را برمی‌گرداند.
-    """
-    if not native_lib_dir:
-        return "ERROR: native_lib_dir is None"
-        
-    ffprobe_path = os.path.join(native_lib_dir, 'libffprobe.so')
-    if not os.path.exists(ffprobe_path):
-        return f"ERROR: libffprobe.so not found at {ffprobe_path}"
-
-    custom_env = os.environ.copy()
-    # ست کردن مسیر کتابخانه‌های نیتیو برای پیدا کردن وابستگی‌ها (مثل libssl)
-    custom_env['LD_LIBRARY_PATH'] = native_lib_dir + ":" + custom_env.get('LD_LIBRARY_PATH', '')
-    
+def get_current_ip(proxy=None):
     try:
-        # تست با آرگومان -version
-        proc = subprocess.run(
-            [ffprobe_path, '-version'],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=custom_env
-        )
+        handlers = []
+        if proxy:
+            if proxy.startswith('socks'):
+                import socks
+                import socket
+                # Parse socks5h://127.0.0.1:10808
+                prefix, rest = proxy.split("://")
+                addr, port = rest.split(":")
+                socks.set_default_proxy(socks.SOCKS5, addr, int(port), rdns=True)
+                socket.socket = socks.socksocket
+            else:
+                handlers.append(urllib.request.ProxyHandler({'http': proxy, 'https': proxy}))
         
-        result = [
-            f"FFPROBE TEST RESULT (Code: {proc.returncode})",
-            f"STDOUT: {proc.stdout}",
-            f"STDERR: {proc.stderr}",
-            f"ENV LD_LIBRARY_PATH: {custom_env['LD_LIBRARY_PATH']}"
-        ]
-        return "\n".join(result)
+        opener = urllib.request.build_opener(*handlers)
+        with opener.open("https://api.ipify.org", timeout=5) as response:
+            return response.read().decode('utf-8')
     except Exception as e:
-        return f"FFPROBE TEST CRASHED: {str(e)}"
+        return f"Error: {str(e)}"
 
 def apply_ffmpeg_patch(native_lib_dir):
-    """
-    Globally redirects all ffmpeg/ffprobe calls to the .so files in nativeLibraryDir.
-    Also ensures LD_LIBRARY_PATH is set so dependencies are found.
-    """
     if not native_lib_dir:
         return None
         
@@ -59,7 +42,6 @@ def apply_ffmpeg_patch(native_lib_dir):
     custom_env = os.environ.copy()
     custom_env['LD_LIBRARY_PATH'] = native_lib_dir + ":" + custom_env.get('LD_LIBRARY_PATH', '')
 
-    # 1. Patch FFmpegPostProcessor
     FFmpegPostProcessor._get_ffmpeg_path = lambda self: ffmpeg_bin
     FFmpegPostProcessor._get_ffprobe_path = lambda self: ffprobe_bin
     
@@ -70,21 +52,17 @@ def apply_ffmpeg_patch(native_lib_dir):
             self._paths = {'ffmpeg': ffmpeg_bin, 'ffprobe': ffprobe_bin}
         if hasattr(self, '_executables'):
             self._executables = {'ffmpeg': ffmpeg_bin, 'ffprobe': ffprobe_bin}
-        # Inject env into the postprocessor if the version supports it
         if hasattr(self, 'env'):
             self.env = custom_env
             
     FFmpegPostProcessor.__init__ = patched_init
 
-    # 2. Patch subprocess.Popen globally to always include LD_LIBRARY_PATH
     orig_popen = subprocess.Popen
     def patched_popen(args, **kwargs):
-        # Inject our environment
         new_env = kwargs.get('env', os.environ).copy()
         new_env['LD_LIBRARY_PATH'] = native_lib_dir + ":" + new_env.get('LD_LIBRARY_PATH', '')
         kwargs['env'] = new_env
         
-        # Handle command replacement
         if isinstance(args, list) and len(args) > 0:
             if args[0] == 'ffmpeg': args[0] = ffmpeg_bin
             elif args[0] == 'ffprobe': args[0] = ffprobe_bin
@@ -95,7 +73,6 @@ def apply_ffmpeg_patch(native_lib_dir):
         return orig_popen(args, **kwargs)
     subprocess.Popen = patched_popen
 
-    # 3. Patch shutil.which
     orig_which = shutil.which
     def patched_which(cmd, mode=os.F_OK | os.X_OK, path=None):
         if cmd == 'ffmpeg': return ffmpeg_bin
@@ -112,16 +89,79 @@ def get_ytdlp_version():
     except Exception as e:
         return f"Error: {str(e)}"
 
+def check_ffmpeg_encoders(ffmpeg_path):
+    """
+    اجرای دستور -encoders برای بررسی کدک‌های موجود در باینری FFmpeg
+    """
+    try:
+        if not ffmpeg_path or not os.path.exists(ffmpeg_path):
+            return f"Error: FFmpeg not found at {ffmpeg_path}"
+        
+        # Ensure LD_LIBRARY_PATH is set for dependencies
+        native_dir = os.path.dirname(ffmpeg_path)
+        custom_env = os.environ.copy()
+        custom_env['LD_LIBRARY_PATH'] = native_dir + ":" + custom_env.get('LD_LIBRARY_PATH', '')
+
+        result = subprocess.run(
+            [ffmpeg_path, '-encoders'], 
+            capture_output=True, 
+            text=True, 
+            timeout=15,
+            env=custom_env
+        )
+        return result.stdout
+    except Exception as e:
+        return f"Error running encoders check: {str(e)}"
+
+def run_ffprobe_test(native_lib_dir):
+    """
+    تست ساده ffprobe برای اطمینان از سلامت باینری و لود شدن کتابخانه‌ها
+    """
+    try:
+        if not native_lib_dir:
+            return "Error: native_lib_dir is None"
+            
+        ffprobe_path = os.path.join(native_lib_dir, 'libffprobe.so')
+        if not os.path.exists(ffprobe_path):
+            return f"Error: libffprobe.so not found at {ffprobe_path}"
+
+        custom_env = os.environ.copy()
+        custom_env['LD_LIBRARY_PATH'] = native_lib_dir + ":" + custom_env.get('LD_LIBRARY_PATH', '')
+        
+        proc = subprocess.run(
+            [ffprobe_path, '-version'],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=custom_env
+        )
+        
+        if proc.returncode == 0:
+            return f"FFPROBE OK: {proc.stdout.splitlines()[0]}"
+        else:
+            return f"FFPROBE FAILED (Code {proc.returncode}): {proc.stderr}"
+    except Exception as e:
+        return f"FFPROBE CRASHED: {str(e)}"
+
 def preview_media(url, cookie_file_path=None, proxy=None):
+    print(f"DEBUG: Proxy passed to preview: {proxy}")
+    print(f"DEBUG: Current IP: {get_current_ip(proxy)}")
+    
     ydl_opts = {
         'proxy': proxy,
         'quiet': True,
         'nocheckcertificate': True,
         'no_warnings': True,
         'extract_flat': 'in_playlist',
+        'socket_timeout': 30,
+        'retries': 10,
+        'fragment_retries': 10,
+        'extractor_retries': 5,
+        'source_address': None,
+        'force_ipv4': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['web', 'android', 'ios'],
+                'player_client': ['android', 'ios', 'tv'],
                 'skip': ['hls', 'dash']
             }
         }
@@ -129,50 +169,41 @@ def preview_media(url, cookie_file_path=None, proxy=None):
     if cookie_file_path and os.path.exists(cookie_file_path):
         ydl_opts['cookiefile'] = cookie_file_path
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            try:
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-            except Exception as e:
-                err_msg = str(e)
-                if "reloaded" in err_msg.lower() or "bot" in err_msg.lower() or "sign in" in err_msg.lower():
-                    time.sleep(2)
-                    ydl_opts['extractor_args']['youtube']['player_client'] = ['ios']
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
-                        info = ydl_retry.extract_info(url, download=False)
-                else:
-                    # Pinterest specific debug
-                    if "json" in err_msg.lower() or "pinterest" in url.lower() or "pin.it" in url.lower():
-                        print(f"DEBUG Pinterest Error: {err_msg}")
-                    raise e
                 
-            result = {
-                'media_kind': 'video', 
-                'title': info.get('title', 'Unknown'), 
-                'duration': info.get('duration'),
-                'thumbnail_url': info.get('thumbnail')
-            }
-            if info.get('entries'):
-                result['type'] = 'carousel'
-                result['item_count'] = len(info['entries'])
-            else:
-                result['type'] = 'single'
-            return json.dumps(result)
-    except Exception as e:
-        return json.dumps({"error": str(e)})
-
-def _guess_kind(info):
-    ext = info.get('ext', '').lower()
-    if ext in ['jpg', 'jpeg', 'png', 'webp', 'heic']: return "photo"
-    if info.get('vcodec') == 'none' and info.get('acodec') != 'none': return "audio"
-    return "video"
+                result = {
+                    'media_kind': 'video', 
+                    'title': info.get('title', 'Unknown'), 
+                    'duration': info.get('duration'),
+                    'thumbnail_url': info.get('thumbnail')
+                }
+                if info.get('entries'):
+                    result['type'] = 'carousel'
+                    result['item_count'] = len(info['entries'])
+                else:
+                    result['type'] = 'single'
+                return json.dumps(result)
+        except Exception as e:
+            err_msg = str(e)
+            if attempt < max_retries and ("incomplete" in err_msg.lower() or "unable to download api page" in err_msg.lower() or "reloaded" in err_msg.lower()):
+                wait_time = 2 ** (attempt + 1)
+                print(f"DEBUG: Preview retry {attempt + 1}/{max_retries} after {wait_time}s due to error: {err_msg}")
+                time.sleep(wait_time)
+                continue
+            return json.dumps({"error": err_msg})
 
 def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None, proxy=None, progress_listener=None, write_subs=False, audio_only=False, custom_args=None):
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
 
-    # Apply patches and set environment
     ffmpeg_bin_str = apply_ffmpeg_patch(ffmpeg_path)
+    
+    print(f"DEBUG: Proxy passed to download: {proxy}")
+    print(f"DEBUG: Current IP: {get_current_ip(proxy)}")
 
     def progress_hook(d):
         if d['status'] == 'downloading':
@@ -196,10 +227,16 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
         'progress_hooks': [progress_hook],
         'ffmpeg_location': ffmpeg_bin_str,
         'keepvideo': True,
-        'merge_output_format': 'mp4',  # Force MP4 for better Telegram compatibility
+        'merge_output_format': 'mp4',
+        'socket_timeout': 30,
+        'retries': 10,
+        'fragment_retries': 10,
+        'extractor_retries': 5,
+        'source_address': None,
+        'force_ipv4': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['web', 'android', 'ios'],
+                'player_client': ['android', 'ios', 'tv'],
                 'skip': ['hls', 'dash']
             }
         }
@@ -210,7 +247,7 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
 
     postprocessors = []
     if audio_only:
-        postprocessors.append({'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'})
+        postprocessors.append({'key': 'FFmpegExtractAudio', 'preferredcodec': 'opus', 'preferredquality': '192'})
     
     if write_subs:
         ydl_opts['writesubtitles'] = True
@@ -220,37 +257,33 @@ def download_video(url, download_dir, quality="best", only_first_item=False, med
     if postprocessors:
         ydl_opts['postprocessors'] = postprocessors
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            try:
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-            except Exception as e:
-                err_msg = str(e)
-                if "reloaded" in err_msg.lower() or "bot" in err_msg.lower() or "sign in" in err_msg.lower():
-                    time.sleep(3)
-                    ydl_opts['extractor_args']['youtube']['player_client'] = ['ios']
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
-                        info = ydl_retry.extract_info(url, download=True)
-                else:
-                    raise e
-            
-            # Log the downloaded file path for debugging
-            temp_path = ydl.prepare_filename(info)
-            print(f"DEBUG: Downloaded temp file: {temp_path}")
+                
+                temp_path = ydl.prepare_filename(info)
+                print(f"DEBUG: Downloaded temp file: {temp_path}")
 
-            downloaded_files = []
-            if 'entries' in info:
-                for entry in info['entries']:
-                    if entry:
-                        file_path = ydl.prepare_filename(entry)
-                        if os.path.exists(file_path):
-                            downloaded_files.append([file_path, entry.get('title', 'Media')])
-            else:
-                file_path = ydl.prepare_filename(info)
-                if os.path.exists(file_path):
-                    downloaded_files.append([file_path, info.get('title', 'Media')])
-            return json.dumps(downloaded_files)
-    except Exception as e:
-        err_msg = str(e)
-        print(f"DOWNLOAD ERROR: {err_msg}")
-        return json.dumps([["ERROR", f"yt-dlp: {err_msg}"]])
+                downloaded_files = []
+                if 'entries' in info:
+                    for entry in info['entries']:
+                        if entry:
+                            file_path = ydl.prepare_filename(entry)
+                            if os.path.exists(file_path):
+                                downloaded_files.append([file_path, entry.get('title', 'Media')])
+                else:
+                    file_path = ydl.prepare_filename(info)
+                    if os.path.exists(file_path):
+                        downloaded_files.append([file_path, info.get('title', 'Media')])
+                return json.dumps(downloaded_files)
+        except Exception as e:
+            err_msg = str(e)
+            if attempt < max_retries and ("incomplete" in err_msg.lower() or "unable to download api page" in err_msg.lower() or "reloaded" in err_msg.lower()):
+                wait_time = 2 ** (attempt + 1)
+                print(f"DEBUG: Download retry {attempt + 1}/{max_retries} after {wait_time}s due to error: {err_msg}")
+                time.sleep(wait_time)
+                continue
+            print(f"DOWNLOAD ERROR: {err_msg}")
+            return json.dumps([["ERROR", f"yt-dlp: {err_msg}"]])
