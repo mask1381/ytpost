@@ -16,6 +16,14 @@ import javax.xml.parsers.DocumentBuilderFactory
 class RssWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val prefs = applicationContext.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val isAutoEnabled = prefs.getBoolean("rss_auto_enabled", true)
+        
+        if (!isAutoEnabled) {
+            AppLogger.log("RSS: Auto-fetching is disabled. Skipping worker.")
+            return@withContext Result.success()
+        }
+
         val database = AppDatabase.getDatabase(applicationContext)
         val rssSources = database.downloadPreferenceDao().getAll().filter { it.sourceType == "rss" }
 
@@ -59,19 +67,23 @@ class RssWorker(context: Context, params: WorkerParameters) : CoroutineWorker(co
     }
 
     private suspend fun processNewVideo(item: RssItem, quality: String, autoCaption: Boolean, db: AppDatabase) {
+        // Attempt to find specific preferences for this source
+        val channelId = item.url.substringAfter("channel_id=", item.url.substringAfter("v=", ""))
+        val pref = db.downloadPreferenceDao().getPreference("rss", channelId)
+
         val py = Python.getInstance()
         val builder = py.getModule("caption_builder")
         
         var caption: String? = null
         if (autoCaption) {
-            caption = builder.callAttr("build_caption", item.title).toString()
+            caption = CaptionEngine.process(item.title, item.url, pref)
         }
 
         db.taskDao().insert(Task(
             sourceUrl = item.url,
             destination = "", // Will be filled by WorkerService or default
             status = "queued",
-            quality = quality,
+            quality = pref?.defaultQuality ?: quality,
             useDefaultCaption = autoCaption,
             customCaption = caption
         ))

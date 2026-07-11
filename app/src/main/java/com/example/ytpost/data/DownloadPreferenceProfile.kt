@@ -12,6 +12,9 @@ data class DownloadPreferenceProfile(
     val includeCarousel: Boolean = true,
     val allowedMediaTypes: String = "video,photo,audio", // comma-separated
     val useDefaultCaption: Boolean = true,
+    val captionTemplate: String? = null,
+    val captionRulesJson: String? = null, // JSON string for replacement rules
+    val parseMode: String = "HTML",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

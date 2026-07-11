@@ -40,7 +40,6 @@ class SettingsFragment : Fragment() {
 
         setupTelegramConfig()
         setupProxyConfig()
-        setupRssConfig()
         setupDebugInfo()
         
         updateCookieStatus()
@@ -229,53 +228,6 @@ class SettingsFragment : Fragment() {
                         if (_binding == null) return@withContext
                         binding.tvLoginStatus.text = "Status: System Error"
                         Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun setupRssConfig() {
-        val rssPrefs = requireActivity().getSharedPreferences("rss_prefs", Context.MODE_PRIVATE)
-        
-        fun updateRssText() {
-            if (_binding == null) return
-            val sources = rssPrefs.getStringSet("rss_sources", emptySet())
-            binding.tvRssList.text = sources?.joinToString("\n") ?: "No sources."
-        }
-        updateRssText()
-
-        binding.btnAddRss.setOnClickListener {
-            val source = binding.etRssSource.text.toString().trim()
-            if (source.isNotEmpty()) {
-                val quality = when (binding.rgRssQuality.checkedRadioButtonId) {
-                    binding.rbRssMedium.id -> "medium"
-                    binding.rbRssWorst.id -> "worst"
-                    else -> "best"
-                }
-                val includeCarousel = binding.cbRssCarousel.isChecked
-                val includeCaption = binding.cbRssCaption.isChecked
-
-                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    val profile = DownloadPreferenceProfile(
-                        sourceType = "rss",
-                        sourceIdentifier = source,
-                        defaultQuality = quality,
-                        includeCarousel = includeCarousel,
-                        allowedMediaTypes = "video,photo,audio",
-                        useDefaultCaption = includeCaption
-                    )
-                    database.downloadPreferenceDao().insert(profile)
-
-                    val sources = rssPrefs.getStringSet("rss_sources", emptySet())?.toMutableSet() ?: mutableSetOf()
-                    sources.add(source)
-                    rssPrefs.edit().putStringSet("rss_sources", sources).apply()
-
-                    withContext(Dispatchers.Main) {
-                        if (_binding == null) return@withContext
-                        binding.etRssSource.setText("")
-                        updateRssText()
-                        Toast.makeText(context, "Source & Prefs Added", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
