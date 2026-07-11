@@ -61,6 +61,9 @@ class PostFragment : Fragment() {
             LogsDialogFragment.newInstance().show(parentFragmentManager, "logs")
         }
 
+        binding.etDestination.setOnClickListener { showChatSelector() }
+        binding.etDestinationLayout.setEndIconOnClickListener { showChatSelector() }
+
         binding.btnShowFormats.setOnClickListener {
             val link = binding.etManualLink.text.toString().trim()
             if (link.isEmpty()) {
@@ -69,6 +72,14 @@ class PostFragment : Fragment() {
             }
             fetchAndShowFormats(link)
         }
+    }
+
+    private fun showChatSelector() {
+        val dialog = ChatSelectorDialogFragment()
+        dialog.setOnChatSelectedListener { chatId ->
+            binding.etDestination.setText(chatId.toString())
+        }
+        dialog.show(parentFragmentManager, "chat_selector")
     }
 
     private fun fetchAndShowFormats(link: String) {

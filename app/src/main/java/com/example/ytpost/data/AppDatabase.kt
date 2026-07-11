@@ -31,6 +31,22 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `rss_feeds` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `channelId` TEXT NOT NULL, 
+                        `channelName` TEXT NOT NULL, 
+                        `feedUrl` TEXT NOT NULL, 
+                        `isActive` INTEGER NOT NULL DEFAULT 1, 
+                        `lastCheckedItemId` TEXT, 
+                        `captionScript` TEXT
+                    )
+                """.trimIndent())
+            }
+        }
+
         val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""

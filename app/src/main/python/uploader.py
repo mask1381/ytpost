@@ -80,11 +80,11 @@ def upload_to_telegram(session_str, api_id, api_hash, file_paths_json, caption, 
                 is_audio = ext.endswith('.mp3') or ext.endswith('.m4a') or ext.endswith('.opus') or ext.endswith('.wav') or ext.endswith('.ogg')
                 
                 if is_audio:
-                    client.send_file(target, file_path, caption=caption, progress_callback=progress_callback)
+                    client.send_file(target, file_path, caption=caption, parse_mode='html', progress_callback=progress_callback)
                 else:
-                    client.send_file(target, file_path, caption=caption, progress_callback=progress_callback, supports_streaming=True)
+                    client.send_file(target, file_path, caption=caption, parse_mode='html', progress_callback=progress_callback, supports_streaming=True)
             elif len(files_to_send) > 1:
-                client.send_file(target, files_to_send, caption=caption, progress_callback=progress_callback)
+                client.send_file(target, files_to_send, caption=caption, parse_mode='html', progress_callback=progress_callback)
             else:
                 return "ERROR: No files to upload"
         return "OK"

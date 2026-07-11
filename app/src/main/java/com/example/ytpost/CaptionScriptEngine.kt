@@ -18,7 +18,7 @@ object CaptionScriptEngine {
     const val DEFAULT_SCRIPT = """
 const hashtags = extractHashtags(videoInfo.title);
 const cleanTitle = videoInfo.title.replace(/#\w+/g, '').trim();
-return "🎬 <b>" + cleanTitle + "</b>\n\n" + hashtags + "\n\n" + videoInfo.url + "\n\n🌸 <a>" + videoInfo.channelName + "</a>";
+return "🎬 <b>" + cleanTitle + "</b>\n\n" + hashtags + "\n\n" + videoInfo.url + "\n\n🌸 <a href=\"https://t.me/genshinworldsensei\">GWS | Teyvat Archive</a>";
     """
 
     suspend fun process(info: VideoInfo, script: String?): String = withContext(Dispatchers.Default) {
