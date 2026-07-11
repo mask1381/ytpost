@@ -174,10 +174,18 @@ class WorkerService : Service() {
             }
 
             // 2. Build Caption
-            val finalCaption = if (task.customCaption != null) {
+            val finalCaption = if (!task.customCaption.isNullOrBlank()) {
                 task.customCaption
             } else if (task.useDefaultCaption) {
-                captionBuilder.callAttr("build_caption", firstTitle, task.sourceUrl).toString()
+                // Use the new JS engine for manual posts too, with global default
+                val info = CaptionScriptEngine.VideoInfo(
+                    title = firstTitle,
+                    url = task.sourceUrl,
+                    description = "", // yt-dlp download doesn't return full desc here easily
+                    channelName = "",
+                    uploadDate = ""
+                )
+                CaptionScriptEngine.process(info, CaptionScriptEngine.getGlobalDefaultScript(this@WorkerService))
             } else {
                 ""
             }

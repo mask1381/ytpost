@@ -61,16 +61,42 @@ class PostFragment : Fragment() {
             LogsDialogFragment.newInstance().show(parentFragmentManager, "logs")
         }
 
+        binding.btnSyncNow.setOnClickListener {
+            runGlobalSync()
+        }
+
         binding.etDestination.setOnClickListener { showChatSelector() }
         binding.etDestinationLayout.setEndIconOnClickListener { showChatSelector() }
+    }
 
-        binding.btnShowFormats.setOnClickListener {
-            val link = binding.etManualLink.text.toString().trim()
-            if (link.isEmpty()) {
-                Toast.makeText(context, "Enter link first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+    private fun runGlobalSync() {
+        val database = AppDatabase.getDatabase(requireContext())
+        val repository = com.example.ytpost.data.RssRepository(requireContext(), database)
+        
+        lifecycleScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
+                binding.btnSyncNow.isEnabled = false
+                Toast.makeText(context, "Syncing all sources...", Toast.LENGTH_SHORT).show()
             }
-            fetchAndShowFormats(link)
+            try {
+                repository.checkAllFeeds()
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    binding.tvRssLastCheck.text = "Last checked: Just now"
+                    Toast.makeText(context, "Sync Complete", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    Toast.makeText(context, "Sync Failed: \${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    binding.btnSyncNow.isEnabled = true
+                }
+            }
         }
     }
 
@@ -88,6 +114,7 @@ class PostFragment : Fragment() {
             val downloader = py.getModule("downloader")
             
             withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
                 binding.btnShowFormats.isEnabled = false
                 binding.btnShowFormats.text = "Loading Formats..."
             }
@@ -103,6 +130,7 @@ class PostFragment : Fragment() {
                 }
 
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
                     binding.btnShowFormats.isEnabled = true
                     binding.btnShowFormats.text = "Show Available Formats"
                     
@@ -116,9 +144,10 @@ class PostFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
                     binding.btnShowFormats.isEnabled = true
                     binding.btnShowFormats.text = "Show Available Formats"
-                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Error: \${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }

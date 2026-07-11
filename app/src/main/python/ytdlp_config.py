@@ -8,7 +8,7 @@ def get_base_opts(proxy=None, cookie_path=None):
     """
     Returns base yt-dlp options shared across preview and download.
     """
-    ua = 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36'
+    ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
     opts = {
         'proxy': proxy,
         'nocheckcertificate': True,
@@ -16,28 +16,25 @@ def get_base_opts(proxy=None, cookie_path=None):
         'no_warnings': True,
         'noprogress': True,
         'no_color': True,
-        'socket_timeout': 45,
-        'retries': 15,
-        'fragment_retries': 15,
+        'socket_timeout': 60,
+        'retries': 10,
+        'fragment_retries': 10,
         'force_ipv4': True,
         'ignoreerrors': True,
         'postprocessors': [],
         'postprocessor_args': {},
         'user_agent': ua,
-        'referer': 'https://www.instagram.com/',
+        'referer': 'https://www.google.com/',
         'headers': {
             'User-Agent': ua,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.5',
             'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'cross-site',
         },
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'ios', 'tv'],
+                'player_client': ['android', 'web'],
+                'web_client_display_id': [True]
             },
             'instagram': {
                 'get_video_url': [True],
@@ -54,6 +51,9 @@ def get_format_selector(url, quality, audio_only):
     """
     if audio_only:
         return 'bestaudio/best'
+        
+    if not url:
+        return 'bv*+ba/b'
         
     # For Instagram and generic image/video sites, 'best' is more reliable for photos
     if "instagram.com" in url or "facebook.com" in url or "t.co" in url:

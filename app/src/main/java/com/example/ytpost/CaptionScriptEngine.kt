@@ -5,6 +5,10 @@ import app.cash.quickjs.QuickJs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.net.HttpURLConnection
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.*
 
 object CaptionScriptEngine {
 
@@ -16,10 +20,23 @@ object CaptionScriptEngine {
         val uploadDate: String
     )
 
+    interface PersianDateHelper {
+        fun convert(dateStr: String): String
+    }
+
+    interface NetworkHelper {
+        fun get(urlStr: String): String
+    }
+
+    interface HtmlHelper {
+        fun escape(text: String): String
+    }
+
     const val BUILTIN_FALLBACK_SCRIPT = """
 const hashtags = extractHashtags(videoInfo.title);
-const cleanTitle = videoInfo.title.replace(/#\w+/g, '').trim();
-return "🎬 <b>" + cleanTitle + "</b>\n\n" + hashtags + "\n\n" + videoInfo.url + "\n\n🌸 <a href=\"https://t.me/genshinworldsensei\">GWS | Teyvat Archive</a>";
+const cleanTitle = escapeHtml(videoInfo.title.replace(/#\w+/g, '').trim());
+const pDate = toPersianDate(videoInfo.uploadDate);
+return "🎬 <b>" + cleanTitle + "</b>\n\n📅 " + pDate + "\n\n" + hashtags + "\n\n" + videoInfo.url + "\n\n🌸 <a href=\"https://t.me/genshinworldsensei\">GWS | Teyvat Archive</a>";
     """
 
     fun getGlobalDefaultScript(context: Context): String {
@@ -27,11 +44,11 @@ return "🎬 <b>" + cleanTitle + "</b>\n\n" + hashtags + "\n\n" + videoInfo.url 
         return prefs.getString("global_default_caption_script", null) ?: BUILTIN_FALLBACK_SCRIPT
     }
 
-    suspend fun process(info: VideoInfo, script: String?): String = withContext(Dispatchers.Default) {
+    suspend fun process(info: VideoInfo, script: String?): String = withContext(Dispatchers.IO) {
         val finalScript = if (script.isNullOrBlank()) BUILTIN_FALLBACK_SCRIPT else script
         
         try {
-            withTimeout(3000) {
+            withTimeout(5000) { // Increased timeout for fetch support
                 QuickJs.create().use { context ->
                     // 1. Setup helpers
                     context.evaluate("""
@@ -40,6 +57,61 @@ return "🎬 <b>" + cleanTitle + "</b>\n\n" + hashtags + "\n\n" + videoInfo.url 
                             return matches ? matches.join(' ') : '';
                         }
                     """.trimIndent())
+
+                    // Persian Date Helper
+                    context.set("toPersianDate", PersianDateHelper::class.java, object : PersianDateHelper {
+                        override fun convert(dateStr: String): String {
+                            if (dateStr.isBlank()) return ""
+                            return try {
+                                val formats = listOf(
+                                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),
+                                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                                )
+                                var date: Date? = null
+                                for (fmt in formats) {
+                                    try {
+                                        date = fmt.parse(dateStr)
+                                        if (date != null) break
+                                    } catch (e: Exception) {}
+                                }
+                                
+                                val finalDate = date ?: Date()
+                                val cal = Calendar.getInstance()
+                                cal.time = finalDate
+                                
+                                // Basic Jalali conversion: Year - 621, Month offset
+                                // This is a simplified version.
+                                val gy = cal.get(Calendar.YEAR)
+                                val gm = cal.get(Calendar.MONTH) + 1
+                                val gd = cal.get(Calendar.DAY_OF_MONTH)
+                                
+                                val py = gy - 621
+                                "شمسی: $py/$gm/$gd"
+                            } catch (e: Exception) { dateStr }
+                        }
+                    })
+
+                    // Simple synchronous fetch for JS
+                    context.set("fetch", NetworkHelper::class.java, object : NetworkHelper {
+                        override fun get(urlStr: String): String {
+                            return try {
+                                val url = URL(urlStr)
+                                val conn = url.openConnection() as HttpURLConnection
+                                conn.requestMethod = "GET"
+                                conn.connectTimeout = 3000
+                                conn.readTimeout = 3000
+                                conn.inputStream.bufferedReader().use { it.readText() }
+                            } catch (e: Exception) { "Error: " + e.message }
+                        }
+                    })
+
+                    // HTML Escape Helper
+                    context.set("escapeHtml", HtmlHelper::class.java, object : HtmlHelper {
+                        override fun escape(text: String): String {
+                            return escapeHtml(text)
+                        }
+                    })
 
                     // 2. Setup videoInfo
                     context.evaluate("""

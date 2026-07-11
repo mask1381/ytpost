@@ -18,7 +18,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="YTPost v2.0"
+                android:text="Command Center"
                 android:textAppearance="?attr/textAppearanceHeadlineMedium"
                 android:textColor="?attr/colorPrimary"
                 android:textStyle="bold"
@@ -27,7 +27,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Professional Media Downloader"
+                android:text="System Status &amp; Quick Actions"
                 android:textAppearance="?attr/textAppearanceLabelLarge"
                 android:alpha="0.7"
                 android:layout_marginBottom="24dp"/>
@@ -75,41 +75,40 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Status Cards -->
+            <!-- System Status Grid -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="16dp">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="6dp"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp"
-                    app:strokeColor="?attr/colorOutlineVariant"
-                    app:strokeWidth="1dp">
+                    app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="12dp"
+                        android:padding="16dp"
                         android:gravity="center">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Worker"
-                            android:textAppearance="?attr/textAppearanceLabelMedium"/>
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_popup_sync"
+                            app:tint="?attr/colorPrimary"
+                            android:layout_marginBottom="8dp"/>
                         <TextView
                             android:id="@+id/tvWorkerStatus"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Active"
-                            android:textColor="#4CAF50"
-                            android:textStyle="bold"
-                            android:textAppearance="?attr/textAppearanceTitleSmall"/>
+                            android:text="Worker Active"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textStyle="bold"/>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -117,41 +116,40 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="6dp"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp"
-                    app:strokeColor="?attr/colorOutlineVariant"
-                    app:strokeWidth="1dp">
+                    app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="12dp"
+                        android:padding="16dp"
                         android:gravity="center">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Telegram"
-                            android:textAppearance="?attr/textAppearanceLabelMedium"/>
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_menu_send"
+                            app:tint="?attr/colorSecondary"
+                            android:layout_marginBottom="8dp"/>
                         <TextView
                             android:id="@+id/tvLoginStatus"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Connected"
-                            android:textColor="#4CAF50"
-                            android:textStyle="bold"
-                            android:textAppearance="?attr/textAppearanceTitleSmall"/>
+                            android:text="Telegram OK"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textStyle="bold"/>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
-            <!-- Manual Post Card -->
+            <!-- Quick Action: Manual Post -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="4dp"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="2dp"
                 app:strokeWidth="0dp">
 
                 <LinearLayout
@@ -163,22 +161,21 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="New Task"
-                        android:textAppearance="?attr/textAppearanceTitleLarge"
+                        android:text="New Manual Task"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
                         android:textStyle="bold"
-                        android:layout_marginBottom="24dp"/>
+                        android:layout_marginBottom="20dp"/>
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/etDestinationLayout"
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Target Channel/Chat ID"
-                        android:layout_marginBottom="16dp"
+                        android:hint="Target Destination"
+                        android:layout_marginBottom="12dp"
                         app:startIconDrawable="@android:drawable/ic_menu_myplaces"
                         app:endIconMode="custom"
                         app:endIconDrawable="@android:drawable/ic_menu_search"
-                        app:endIconContentDescription="Select from list"
                         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etDestination"
@@ -192,8 +189,8 @@
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Paste Link Here"
-                        android:layout_marginBottom="24dp"
+                        android:hint="YouTube / Instagram URL"
+                        android:layout_marginBottom="20dp"
                         app:startIconDrawable="@android:drawable/ic_menu_share"
                         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent">
                         <com.google.android.material.textfield.TextInputEditText
@@ -205,13 +202,11 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSendLink"
                         android:layout_width="match_parent"
-                        android:layout_height="64dp"
-                        android:text="ANALYZE &amp; POST"
+                        android:layout_height="56dp"
+                        android:text="ADD TO QUEUE"
                         android:textStyle="bold"
-                        android:letterSpacing="0.1"
                         app:cornerRadius="16dp"
-                        app:icon="@android:drawable/ic_menu_send"
-                        app:iconGravity="textStart" />
+                        app:icon="@android:drawable/ic_menu_add" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnShowFormats"
@@ -219,29 +214,68 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Show Available Formats"
+                        android:text="Inspector &amp; Formats"
                         app:icon="@android:drawable/ic_menu_info_details" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Logs Button -->
+            <!-- Automation Status Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?attr/colorOutlineVariant">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_today"
+                        app:tint="?attr/colorPrimary"/>
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="16dp"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Auto-Automation"
+                            android:textAppearance="?attr/textAppearanceTitleSmall"/>
+                        <TextView
+                            android:id="@+id/tvRssLastCheck"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Last checked: Just now"
+                            android:textAppearance="?attr/textAppearanceLabelSmall"
+                            android:alpha="0.7"/>
+                    </LinearLayout>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSyncNow"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:icon="@android:drawable/ic_popup_sync" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Logs Shortcut -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnShowLogs"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="View System Logs"
-                app:icon="@android:drawable/ic_menu_info_details" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Auto-worker will process tasks in the background."
-                android:textAlignment="center"
-                android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:alpha="0.5"
-                android:layout_marginTop="24dp"/>
+                android:text="System Logs"
+                app:icon="@android:drawable/ic_menu_recent_history" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
