@@ -36,7 +36,6 @@ def get_base_opts(proxy=None, cookie_path=None):
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'ios', 'tv'],
-                'skip': ['hls', 'dash']
             },
             'instagram': {
                 'get_video_url': [True],

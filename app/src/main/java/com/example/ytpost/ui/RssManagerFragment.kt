@@ -2,6 +2,9 @@ package com.example.ytpost.ui
 
 import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.Html
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,6 +25,11 @@ import com.example.ytpost.databinding.FragmentRssManagerBinding
 import com.example.ytpost.databinding.ItemRssPreviewBinding
 import com.example.ytpost.databinding.ItemRssSourceBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -117,15 +125,57 @@ class RssManagerFragment : Fragment() {
         }
     }
 
+    @OptIn(FlowPreview::class)
     private fun showEditDialog(feed: RssFeed) {
         val dialogBinding = DialogRssEditBinding.inflate(layoutInflater)
         dialogBinding.etChannelName.setText(feed.channelName)
         dialogBinding.etCaptionScript.setText(feed.captionScript ?: CaptionScriptEngine.DEFAULT_SCRIPT)
         dialogBinding.swActive.isChecked = feed.isActive
 
+        val scriptFlow = MutableStateFlow(dialogBinding.etCaptionScript.text.toString())
+        var previewJob: Job? = null
+
         val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogBinding.root)
             .create()
+
+        // Live Preview Logic
+        viewLifecycleOwner.lifecycleScope.launch {
+            scriptFlow.debounce(600).collect { script ->
+                previewJob?.cancel()
+                previewJob = launch(Dispatchers.IO) {
+                    val info = CaptionScriptEngine.VideoInfo(
+                        title = "Sample Video #Cool #Tutorial",
+                        url = "https://youtube.com/watch?v=123",
+                        description = "Sample Description",
+                        channelName = feed.channelName,
+                        uploadDate = "2023-01-01"
+                    )
+                    try {
+                        val result = CaptionScriptEngine.process(info, script)
+                        withContext(Dispatchers.Main) {
+                            dialogBinding.tvScriptPreview.text = Html.fromHtml(result, Html.FROM_HTML_MODE_COMPACT)
+                            dialogBinding.tvScriptPreview.setTextColor(requireContext().getColor(com.example.ytpost.R.color.onSurfaceVariant))
+                            dialogBinding.btnSave.isEnabled = true
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            dialogBinding.tvScriptPreview.text = "Script Error: ${e.message}"
+                            dialogBinding.tvScriptPreview.setTextColor(requireContext().getColor(com.example.ytpost.R.color.error))
+                            dialogBinding.btnSave.isEnabled = false
+                        }
+                    }
+                }
+            }
+        }
+
+        dialogBinding.etCaptionScript.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                scriptFlow.value = s.toString()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
 
         dialogBinding.btnPreviewScript.setOnClickListener {
             previewScript(dialogBinding.etCaptionScript.text.toString(), feed)
