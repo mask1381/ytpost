@@ -46,6 +46,11 @@ android {
     androidResources {
         noCompress += "ffmpeg"
     }
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 chaquopy {
