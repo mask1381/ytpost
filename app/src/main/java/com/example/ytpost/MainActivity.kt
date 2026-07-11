@@ -18,9 +18,6 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // تنظیم نوار ابزار بالا
-        setSupportActionBar(binding.toolbar)
-
         // راه‌اندازی سیستم ناوبری (Navigation)
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment

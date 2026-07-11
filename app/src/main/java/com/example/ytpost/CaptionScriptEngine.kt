@@ -1,5 +1,6 @@
 package com.example.ytpost
 
+import android.content.Context
 import app.cash.quickjs.QuickJs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,14 +16,19 @@ object CaptionScriptEngine {
         val uploadDate: String
     )
 
-    const val DEFAULT_SCRIPT = """
+    const val BUILTIN_FALLBACK_SCRIPT = """
 const hashtags = extractHashtags(videoInfo.title);
 const cleanTitle = videoInfo.title.replace(/#\w+/g, '').trim();
 return "🎬 <b>" + cleanTitle + "</b>\n\n" + hashtags + "\n\n" + videoInfo.url + "\n\n🌸 <a href=\"https://t.me/genshinworldsensei\">GWS | Teyvat Archive</a>";
     """
 
+    fun getGlobalDefaultScript(context: Context): String {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        return prefs.getString("global_default_caption_script", null) ?: BUILTIN_FALLBACK_SCRIPT
+    }
+
     suspend fun process(info: VideoInfo, script: String?): String = withContext(Dispatchers.Default) {
-        val finalScript = if (script.isNullOrBlank()) DEFAULT_SCRIPT else script
+        val finalScript = if (script.isNullOrBlank()) BUILTIN_FALLBACK_SCRIPT else script
         
         try {
             withTimeout(3000) {

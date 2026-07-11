@@ -99,7 +99,7 @@ class RssManagerFragment : Fragment() {
                 channelId = channelId,
                 channelName = "Loading...",
                 feedUrl = feedUrl,
-                captionScript = CaptionScriptEngine.DEFAULT_SCRIPT
+                captionScript = CaptionScriptEngine.getGlobalDefaultScript(requireContext())
             )
             database.rssFeedDao().insert(feed)
             
@@ -129,7 +129,7 @@ class RssManagerFragment : Fragment() {
     private fun showEditDialog(feed: RssFeed) {
         val dialogBinding = DialogRssEditBinding.inflate(layoutInflater)
         dialogBinding.etChannelName.setText(feed.channelName)
-        dialogBinding.etCaptionScript.setText(feed.captionScript ?: CaptionScriptEngine.DEFAULT_SCRIPT)
+        dialogBinding.etCaptionScript.setText(feed.captionScript ?: CaptionScriptEngine.getGlobalDefaultScript(requireContext()))
         dialogBinding.swActive.isChecked = feed.isActive
 
         val scriptFlow = MutableStateFlow(dialogBinding.etCaptionScript.text.toString())
@@ -139,18 +139,37 @@ class RssManagerFragment : Fragment() {
             .setView(dialogBinding.root)
             .create()
 
+        // Fetch real data once for live preview
+        var latestVideoInfo: CaptionScriptEngine.VideoInfo? = null
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val realItem = repository.fetchRssItems(feed.feedUrl).firstOrNull()
+                latestVideoInfo = if (realItem != null) {
+                    CaptionScriptEngine.VideoInfo(
+                        title = realItem.title,
+                        url = realItem.url,
+                        description = realItem.description,
+                        channelName = realItem.author,
+                        uploadDate = realItem.published
+                    )
+                } else {
+                    CaptionScriptEngine.VideoInfo("Sample Title #Tag", "https://youtube.com/watch?v=123", "", feed.channelName, "")
+                }
+                // Trigger initial preview
+                withContext(Dispatchers.Main) {
+                    scriptFlow.value = dialogBinding.etCaptionScript.text.toString()
+                }
+            } catch (e: Exception) {
+                latestVideoInfo = CaptionScriptEngine.VideoInfo("Sample Title #Tag", "https://youtube.com/watch?v=123", "", feed.channelName, "")
+            }
+        }
+
         // Live Preview Logic
         viewLifecycleOwner.lifecycleScope.launch {
             scriptFlow.debounce(600).collect { script ->
                 previewJob?.cancel()
                 previewJob = launch(Dispatchers.IO) {
-                    val info = CaptionScriptEngine.VideoInfo(
-                        title = "Sample Video #Cool #Tutorial",
-                        url = "https://youtube.com/watch?v=123",
-                        description = "Sample Description",
-                        channelName = feed.channelName,
-                        uploadDate = "2023-01-01"
-                    )
+                    val info = latestVideoInfo ?: return@launch // Wait for data
                     try {
                         val result = CaptionScriptEngine.process(info, script)
                         withContext(Dispatchers.Main) {
@@ -177,11 +196,15 @@ class RssManagerFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
+        // Manual button can now be a "Force Refresh" if data failed
         dialogBinding.btnPreviewScript.setOnClickListener {
-            previewScript(dialogBinding.etCaptionScript.text.toString(), feed)
+            scriptFlow.value = dialogBinding.etCaptionScript.text.toString()
         }
 
         dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
+        dialogBinding.btnResetToGlobal.setOnClickListener {
+            dialogBinding.etCaptionScript.setText(CaptionScriptEngine.getGlobalDefaultScript(requireContext()))
+        }
         dialogBinding.btnSave.setOnClickListener {
             val newName = dialogBinding.etChannelName.text.toString()
             val newScript = dialogBinding.etCaptionScript.text.toString()

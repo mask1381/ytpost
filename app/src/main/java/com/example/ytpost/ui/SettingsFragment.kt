@@ -1,23 +1,31 @@
 package com.example.ytpost.ui
 
-import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.Html
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.chaquo.python.Python
 import com.example.ytpost.AppLogger
+import com.example.ytpost.CaptionScriptEngine
 import com.example.ytpost.ProxyManager
 import com.example.ytpost.TelegramSessionManager
 import com.example.ytpost.data.AppDatabase
 import com.example.ytpost.data.DownloadPreferenceProfile
 import com.example.ytpost.databinding.FragmentSettingsBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -40,9 +48,67 @@ class SettingsFragment : Fragment() {
 
         setupTelegramConfig()
         setupProxyConfig()
+        setupGlobalDefaultScript()
         setupDebugInfo()
         
         updateCookieStatus()
+    }
+
+    @OptIn(FlowPreview::class)
+    private fun setupGlobalDefaultScript() {
+        val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val currentScript = CaptionScriptEngine.getGlobalDefaultScript(requireContext())
+        binding.etGlobalScript.setText(currentScript)
+
+        val scriptFlow = MutableStateFlow(currentScript)
+        var previewJob: Job? = null
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            scriptFlow.debounce(600).collect { script ->
+                previewJob?.cancel()
+                previewJob = launch(Dispatchers.Default) {
+                    val info = CaptionScriptEngine.VideoInfo(
+                        "Sample Title #Global",
+                        "https://youtube.com/watch?v=global",
+                        "Sample description for global default.",
+                        "GWS | Teyvat Archive",
+                        "2024-01-01"
+                    )
+                    try {
+                        val result = CaptionScriptEngine.process(info, script)
+                        withContext(Dispatchers.Main) {
+                            if (_binding == null) return@withContext
+                            binding.tvGlobalPreview.text = Html.fromHtml(result, Html.FROM_HTML_MODE_COMPACT)
+                            binding.tvGlobalPreview.setTextColor(requireContext().getColor(com.example.ytpost.R.color.onSurfaceVariant))
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            if (_binding == null) return@withContext
+                            binding.tvGlobalPreview.text = "Error: ${e.message}"
+                            binding.tvGlobalPreview.setTextColor(requireContext().getColor(com.example.ytpost.R.color.error))
+                        }
+                    }
+                }
+            }
+        }
+
+        binding.etGlobalScript.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                scriptFlow.value = s.toString()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        binding.btnSaveGlobalScript.setOnClickListener {
+            val script = binding.etGlobalScript.text.toString()
+            sharedPrefs.edit().putString("global_default_caption_script", script).apply()
+            Toast.makeText(context, "Global Default Saved", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnResetGlobal.setOnClickListener {
+            binding.etGlobalScript.setText(CaptionScriptEngine.BUILTIN_FALLBACK_SCRIPT)
+        }
     }
 
     private fun updateCookieStatus() {
