@@ -41,8 +41,8 @@ class RssRepository(private val context: Context, private val db: AppDatabase) {
             val list = items.takeWhile { it.id != feed.lastCheckedItemId }
             if (list.size == items.size && items.isNotEmpty()) {
                  // If lastCheckedItemId was not found in the list, maybe it's too old or URL changed
-                 // Just take the latest one to reset
-                 listOf(items.first())
+                 // To prevent flooding, we only take the latest 3 items to reset.
+                 items.take(3)
             } else {
                 list
             }
@@ -53,7 +53,10 @@ class RssRepository(private val context: Context, private val db: AppDatabase) {
             return@withContext
         }
 
-        for (item in newItems.reversed()) { // Process oldest first
+        // Limit maximum processing in one go to 10 items to prevent database/network overhead
+        val finalItemsToProcess = newItems.take(10)
+
+        for (item in finalItemsToProcess.reversed()) { // Process oldest first
             if (!db.rssHistoryDao().isProcessed(item.id)) {
                 
                 val info = CaptionScriptEngine.VideoInfo(

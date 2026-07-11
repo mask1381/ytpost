@@ -14,6 +14,8 @@ def get_base_opts(proxy=None, cookie_path=None):
         'nocheckcertificate': True,
         'quiet': True,
         'no_warnings': True,
+        'noprogress': True,
+        'no_color': True,
         'socket_timeout': 45,
         'retries': 15,
         'fragment_retries': 15,

@@ -165,64 +165,71 @@ class WorkerService : Service() {
         }
         
         val filePaths = mutableListOf<String>()
-        var firstTitle = ""
-        for (i in 0 until downloadListJson.length()) {
-            val item = downloadListJson.getJSONArray(i)
-            filePaths.add(item.getString(0))
-            if (i == 0) firstTitle = item.getString(1)
-        }
+        try {
+            var firstTitle = ""
+            for (i in 0 until downloadListJson.length()) {
+                val item = downloadListJson.getJSONArray(i)
+                filePaths.add(item.getString(0))
+                if (i == 0) firstTitle = item.getString(1)
+            }
 
-        // 2. Build Caption
-        val finalCaption = if (task.customCaption != null) {
-            task.customCaption
-        } else if (task.useDefaultCaption) {
-            captionBuilder.callAttr("build_caption", firstTitle, task.sourceUrl).toString()
-        } else {
-            ""
-        }
-        
-        // 3. Upload
-        AppLogger.logProcess("Uploading to Telegram...")
-        database.taskDao().update(task.copy(status = "uploading", progress = 0))
-        
-        val sessionStr = sessionManager.getSessionString()
-        val apiId = sessionManager.getApiId()
-        val apiHash = sessionManager.getApiHash()
-        
-        if (sessionStr == null || apiId == null || apiHash == null) {
-            throw Exception("Telegram not configured.")
-        }
-        
-        val filePathsJson = JSONArray(filePaths).toString()
-        
-        val uploadResult = uploader.callAttr(
-            "upload_to_telegram", 
-            sessionStr, 
-            apiId, 
-            apiHash, 
-            filePathsJson, 
-            finalCaption,
-            task.destination,
-            proxy,
-            progressListener
-        ).toString()
-        
-        if (uploadResult.startsWith("ERROR")) {
-            if (isRetryableError(uploadResult)) {
-                throw RecoverableException(uploadResult)
+            // 2. Build Caption
+            val finalCaption = if (task.customCaption != null) {
+                task.customCaption
+            } else if (task.useDefaultCaption) {
+                captionBuilder.callAttr("build_caption", firstTitle, task.sourceUrl).toString()
             } else {
-                throw Exception(uploadResult)
+                ""
+            }
+            
+            // 3. Upload
+            AppLogger.logProcess("Uploading to Telegram...")
+            database.taskDao().update(task.copy(status = "uploading", progress = 0))
+            
+            val sessionStr = sessionManager.getSessionString()
+            val apiId = sessionManager.getApiId()
+            val apiHash = sessionManager.getApiHash()
+            
+            if (sessionStr == null || apiId == null || apiHash == null) {
+                throw Exception("Telegram not configured.")
+            }
+            
+            val filePathsJson = JSONArray(filePaths).toString()
+            
+            val uploadResult = uploader.callAttr(
+                "upload_to_telegram", 
+                sessionStr, 
+                apiId, 
+                apiHash, 
+                filePathsJson, 
+                finalCaption,
+                task.destination,
+                proxy,
+                progressListener
+            ).toString()
+            
+            if (uploadResult.startsWith("ERROR")) {
+                if (isRetryableError(uploadResult)) {
+                    throw RecoverableException(uploadResult)
+                } else {
+                    throw Exception(uploadResult)
+                }
+            }
+
+            database.taskDao().update(task.copy(status = "done", errorMessage = null, progress = 100))
+            AppLogger.logSuccess("Task finished: \${task.sourceUrl}")
+            showCompletionNotification("Task Completed", "Finished processing \${task.sourceUrl}")
+
+        } finally {
+            // Cleanup in any case (Success, Error, or Exception)
+            for (path in filePaths) {
+                val file = File(path)
+                if (file.exists()) {
+                    file.delete()
+                    AppLogger.log("Cleanup: Deleted \${file.name}")
+                }
             }
         }
-
-        // Success Cleanup
-        for (path in filePaths) {
-            File(path).delete()
-        }
-        
-        database.taskDao().update(task.copy(status = "done", errorMessage = null, progress = 100))
-        AppLogger.logSuccess("Task finished: ${task.sourceUrl}")
-        showCompletionNotification("Task Completed", "Finished processing ${task.sourceUrl}")
     }
 
     private suspend fun handleRecoverableError(task: Task, e: Exception) {

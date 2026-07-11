@@ -104,9 +104,11 @@ class RssManagerFragment : Fragment() {
             database.rssFeedDao().insert(feed)
             
             withContext(Dispatchers.Main) {
-                binding.etRssSource.setText("")
-                loadSources()
-                Toast.makeText(context, "Source Added", Toast.LENGTH_SHORT).show()
+                if (_binding != null) {
+                    binding.etRssSource.setText("")
+                    loadSources()
+                    Toast.makeText(context, "Source Added", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
