@@ -60,6 +60,57 @@ class PostFragment : Fragment() {
         binding.btnShowLogs.setOnClickListener {
             LogsDialogFragment.newInstance().show(parentFragmentManager, "logs")
         }
+
+        binding.btnShowFormats.setOnClickListener {
+            val link = binding.etManualLink.text.toString().trim()
+            if (link.isEmpty()) {
+                Toast.makeText(context, "Enter link first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            fetchAndShowFormats(link)
+        }
+    }
+
+    private fun fetchAndShowFormats(link: String) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val py = Python.getInstance()
+            val downloader = py.getModule("downloader")
+            
+            withContext(Dispatchers.Main) {
+                binding.btnShowFormats.isEnabled = false
+                binding.btnShowFormats.text = "Loading Formats..."
+            }
+
+            try {
+                val sharedPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val useManualProxy = sharedPrefs.getBoolean("use_manual_proxy", false)
+                val currentProxy = if (useManualProxy) ProxyManager.detectProxy() else null
+                val cookiePath = sharedPrefs.getString("cookie_file_path", null)
+                
+                val json = withTimeoutOrNull(30000) {
+                    downloader.callAttr("get_video_formats", link, cookiePath, currentProxy).toString()
+                }
+
+                withContext(Dispatchers.Main) {
+                    binding.btnShowFormats.isEnabled = true
+                    binding.btnShowFormats.text = "Show Available Formats"
+                    
+                    if (json == null) {
+                        Toast.makeText(context, "Timeout fetching formats", Toast.LENGTH_SHORT).show()
+                    } else if (json.contains("error")) {
+                        Toast.makeText(context, json, Toast.LENGTH_LONG).show()
+                    } else {
+                        FormatsDialogFragment.newInstance(json).show(parentFragmentManager, "formats")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    binding.btnShowFormats.isEnabled = true
+                    binding.btnShowFormats.text = "Show Available Formats"
+                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun showPreview(link: String, destination: String) {

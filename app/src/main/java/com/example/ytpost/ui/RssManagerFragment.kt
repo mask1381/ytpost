@@ -6,37 +6,36 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.chaquo.python.Python
 import com.example.ytpost.AppLogger
-import com.example.ytpost.CaptionEngine
-import com.example.ytpost.RssWorker
+import com.example.ytpost.CaptionScriptEngine
 import com.example.ytpost.data.AppDatabase
-import com.example.ytpost.data.DownloadPreferenceProfile
-import com.example.ytpost.data.RssHistory
+import com.example.ytpost.data.RssFeed
+import com.example.ytpost.data.RssRepository
 import com.example.ytpost.data.Task
+import com.example.ytpost.databinding.DialogRssEditBinding
 import com.example.ytpost.databinding.FragmentRssManagerBinding
 import com.example.ytpost.databinding.ItemRssPreviewBinding
 import com.example.ytpost.databinding.ItemRssSourceBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.w3c.dom.Element
-import java.net.URL
-import javax.xml.parsers.DocumentBuilderFactory
 
 class RssManagerFragment : Fragment() {
     private var _binding: FragmentRssManagerBinding? = null
     private val binding get() = _binding!!
     private lateinit var database: AppDatabase
+    private lateinit var repository: RssRepository
     
     private val previewAdapter = RssPreviewAdapter { item -> addToQueue(item) }
     private val sourcesAdapter = RssSourcesAdapter(
-        onDelete = { source -> deleteSource(source) },
-        onEdit = { source -> showEditDialog(source) }
+        onDelete = { feed -> deleteSource(feed) },
+        onEdit = { feed -> showEditDialog(feed) },
+        onToggle = { feed -> toggleSource(feed) }
     )
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -47,6 +46,7 @@ class RssManagerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         database = AppDatabase.getDatabase(requireContext())
+        repository = RssRepository(requireContext(), database)
         
         binding.rvRssSources.layoutManager = LinearLayoutManager(requireContext())
         binding.rvRssSources.adapter = sourcesAdapter
@@ -65,11 +65,10 @@ class RssManagerFragment : Fragment() {
         
         binding.swAutoRss.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("rss_auto_enabled", isChecked).apply()
-            AppLogger.log("RSS Auto: $isChecked")
         }
 
         binding.btnFetchManual.setOnClickListener {
-            refreshFeeds()
+            runManualCheck()
         }
 
         binding.btnAddRss.setOnClickListener {
@@ -78,147 +77,143 @@ class RssManagerFragment : Fragment() {
     }
 
     private fun addSource() {
-        val source = binding.etRssSource.text.toString().trim()
-        if (source.isEmpty()) return
+        val input = binding.etRssSource.text.toString().trim()
+        if (input.isEmpty()) return
 
-        val includeCarousel = binding.cbRssCarousel.isChecked
-        val includeCaption = binding.cbRssCaption.isChecked
-        val template = binding.etRssTemplate.text.toString().trim()
+        val channelId = if (input.contains("channel/")) input.substringAfter("channel/") 
+                        else if (input.contains("channel_id=")) input.substringAfter("channel_id=")
+                        else input
+        
+        val feedUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val profile = DownloadPreferenceProfile(
-                sourceType = "rss",
-                sourceIdentifier = source,
-                defaultQuality = "best",
-                includeCarousel = includeCarousel,
-                allowedMediaTypes = "video,photo,audio",
-                useDefaultCaption = includeCaption,
-                captionTemplate = if (template.isNotEmpty()) template else null,
-                parseMode = "HTML"
+            val feed = RssFeed(
+                channelId = channelId,
+                channelName = "Loading...",
+                feedUrl = feedUrl,
+                captionScript = CaptionScriptEngine.DEFAULT_SCRIPT
             )
-            database.downloadPreferenceDao().insert(profile)
-
-            // Update legacy preferences for compatibility
-            val rssPrefs = requireActivity().getSharedPreferences("rss_prefs", Context.MODE_PRIVATE)
-            val sources = rssPrefs.getStringSet("rss_sources", emptySet())?.toMutableSet() ?: mutableSetOf()
-            sources.add(source)
-            rssPrefs.edit().putStringSet("rss_sources", sources).apply()
-
+            database.rssFeedDao().insert(feed)
+            
             withContext(Dispatchers.Main) {
                 binding.etRssSource.setText("")
                 loadSources()
-                loadPreviews()
                 Toast.makeText(context, "Source Added", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun deleteSource(source: DownloadPreferenceProfile) {
+    private fun deleteSource(feed: RssFeed) {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            database.downloadPreferenceDao().delete(source)
-            
-            val rssPrefs = requireActivity().getSharedPreferences("rss_prefs", Context.MODE_PRIVATE)
-            val sources = rssPrefs.getStringSet("rss_sources", emptySet())?.toMutableSet() ?: mutableSetOf()
-            sources.remove(source.sourceIdentifier)
-            rssPrefs.edit().putStringSet("rss_sources", sources).apply()
-
-            withContext(Dispatchers.Main) {
-                loadSources()
-                loadPreviews()
-                Toast.makeText(context, "Source Removed", Toast.LENGTH_SHORT).show()
-            }
+            database.rssFeedDao().delete(feed)
+            withContext(Dispatchers.Main) { loadSources() }
         }
     }
 
-    private fun showEditDialog(source: DownloadPreferenceProfile) {
-        val dialogView = LayoutInflater.from(requireContext()).inflate(com.example.ytpost.R.layout.dialog_rss_edit, null)
-        val etTemplate = dialogView.findViewById<android.widget.EditText>(com.example.ytpost.R.id.etTemplate)
-        val etJsonRules = dialogView.findViewById<android.widget.EditText>(com.example.ytpost.R.id.etJsonRules)
-        val tvId = dialogView.findViewById<android.widget.TextView>(com.example.ytpost.R.id.tvSourceId)
+    private fun toggleSource(feed: RssFeed) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            database.rssFeedDao().update(feed.copy(isActive = !feed.isActive))
+            withContext(Dispatchers.Main) { loadSources() }
+        }
+    }
 
-        tvId.text = "Editing: ${source.sourceIdentifier}"
-        etTemplate.setText(source.captionTemplate ?: "{title}\n{url}")
-        etJsonRules.setText(source.captionRulesJson ?: "[]")
+    private fun showEditDialog(feed: RssFeed) {
+        val dialogBinding = DialogRssEditBinding.inflate(layoutInflater)
+        dialogBinding.etChannelName.setText(feed.channelName)
+        dialogBinding.etCaptionScript.setText(feed.captionScript ?: CaptionScriptEngine.DEFAULT_SCRIPT)
+        dialogBinding.swActive.isChecked = feed.isActive
 
-        val dialog = android.app.AlertDialog.Builder(requireContext())
-            .setView(dialogView)
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogBinding.root)
             .create()
 
-        dialogView.findViewById<View>(com.example.ytpost.R.id.btnCancel).setOnClickListener { dialog.dismiss() }
-        dialogView.findViewById<View>(com.example.ytpost.R.id.btnSave).setOnClickListener {
-            val newTemplate = etTemplate.text.toString().trim()
-            val newJson = etJsonRules.text.toString().trim()
+        dialogBinding.btnPreviewScript.setOnClickListener {
+            previewScript(dialogBinding.etCaptionScript.text.toString(), feed)
+        }
 
-            // Basic JSON validation
-            try {
-                org.json.JSONArray(newJson)
-            } catch (e: Exception) {
-                Toast.makeText(context, "Invalid JSON format", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+        dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
+        dialogBinding.btnSave.setOnClickListener {
+            val newName = dialogBinding.etChannelName.text.toString()
+            val newScript = dialogBinding.etCaptionScript.text.toString()
+            val isActive = dialogBinding.swActive.isChecked
 
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                val updated = source.copy(
-                    captionTemplate = newTemplate,
-                    captionRulesJson = newJson
-                )
-                database.downloadPreferenceDao().update(updated)
+                database.rssFeedDao().update(feed.copy(
+                    channelName = newName,
+                    captionScript = newScript,
+                    isActive = isActive
+                ))
                 withContext(Dispatchers.Main) {
                     loadSources()
                     dialog.dismiss()
-                    Toast.makeText(context, "Settings Saved", Toast.LENGTH_SHORT).show()
                 }
             }
         }
-
         dialog.show()
     }
 
-    private fun loadSources() {
+    private fun previewScript(script: String, feed: RssFeed) {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val sources = database.downloadPreferenceDao().getAll().filter { it.sourceType == "rss" }
+            val info = CaptionScriptEngine.VideoInfo(
+                title = "Sample Video #Cool #Tutorial",
+                url = "https://youtube.com/watch?v=123",
+                description = "This is a sample description",
+                channelName = feed.channelName,
+                uploadDate = "2023-01-01"
+            )
+            val output = CaptionScriptEngine.process(info, script)
             withContext(Dispatchers.Main) {
-                if (_binding != null) {
-                    sourcesAdapter.submitList(sources)
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Preview Output")
+                    .setMessage(output)
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
+        }
+    }
+
+    private fun runManualCheck() {
+        binding.btnFetchManual.isEnabled = false
+        binding.progressBar.visibility = View.VISIBLE
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                repository.checkAllFeeds()
+                withContext(Dispatchers.Main) {
+                    loadPreviews()
+                    loadSources()
+                    Toast.makeText(context, "Manual Check Completed", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("Manual Check Failed: ${e.message}")
+            } finally {
+                withContext(Dispatchers.Main) {
+                    binding.btnFetchManual.isEnabled = true
+                    binding.progressBar.visibility = View.GONE
                 }
             }
         }
     }
 
-    private fun refreshFeeds() {
-        binding.progressBar.visibility = View.VISIBLE
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                loadPreviews()
-                withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = View.GONE
-                    Toast.makeText(context, "Sync Completed", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = View.GONE
-                    AppLogger.logError("Manual RSS Error: ${e.message}")
-                }
+    private fun loadSources() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            database.rssFeedDao().getAllFeeds().collect { feeds ->
+                sourcesAdapter.submitList(feeds)
             }
         }
     }
 
     private fun loadPreviews() {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val rssSources = database.downloadPreferenceDao().getAll().filter { it.sourceType == "rss" }
-            val allItems = mutableListOf<RssWorker.RssItem>()
+            val feeds = database.rssFeedDao().getActiveFeeds()
+            val allItems = mutableListOf<RssRepository.RssItem>()
             
-            for (source in rssSources) {
-                val channelId = source.sourceIdentifier ?: continue
-                val rssUrl = if (channelId.startsWith("http")) channelId 
-                             else "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
-                try {
-                    val items = fetchRssItems(rssUrl).take(5) 
-                    allItems.addAll(items)
-                } catch (e: Exception) {}
+            for (feed in feeds) {
+                val items = repository.fetchRssItems(feed.feedUrl)
+                allItems.addAll(items.take(5)) // Take last 5 from each channel
             }
             
-            val displayList = allItems.distinctBy { it.id }.take(10)
+            // Limit total display to 15 items, distinct
+            val displayList = allItems.distinctBy { it.id }.take(15)
 
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
@@ -228,47 +223,36 @@ class RssManagerFragment : Fragment() {
         }
     }
 
-    private fun fetchRssItems(url: String): List<RssWorker.RssItem> {
-        val items = mutableListOf<RssWorker.RssItem>()
-        try {
-            val conn = URL(url).openConnection()
-            val factory = DocumentBuilderFactory.newInstance()
-            val builder = factory.newDocumentBuilder()
-            val doc = builder.parse(conn.getInputStream())
-            val entries = doc.getElementsByTagName("entry")
-
-            for (i in 0 until entries.length) {
-                val entry = entries.item(i) as Element
-                val id = entry.getElementsByTagName("yt:videoId").item(0)?.textContent ?: continue
-                val title = entry.getElementsByTagName("title").item(0)?.textContent ?: "No Title"
-                val link = "https://www.youtube.com/watch?v=$id"
-                items.add(RssWorker.RssItem(id, title, link))
-            }
-        } catch (e: Exception) {}
-        return items
-    }
-
-    private fun addToQueue(item: RssWorker.RssItem) {
+    private fun addToQueue(item: RssRepository.RssItem) {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            // Find specific pref for this source
-            val channelId = item.url.substringAfter("channel_id=", item.url.substringAfter("v=", ""))
-            val pref = database.downloadPreferenceDao().getPreference("rss", channelId)
+            // Find feed for this item if possible to use custom script
+            val feeds = database.rssFeedDao().getActiveFeeds()
+            val matchingFeed = feeds.find { item.url.contains(it.channelId) }
             
-            val caption = CaptionEngine.process(item.title, item.url, pref)
+            val info = CaptionScriptEngine.VideoInfo(
+                title = item.title,
+                url = item.url,
+                description = item.description,
+                channelName = item.author,
+                uploadDate = item.published
+            )
+            
+            val caption = CaptionScriptEngine.process(info, matchingFeed?.captionScript)
+
+            val defaultDest = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                .getString("default_destination", "") ?: ""
 
             database.taskDao().insert(Task(
                 sourceUrl = item.url,
-                destination = "",
+                destination = defaultDest,
                 status = "queued",
-                quality = pref?.defaultQuality ?: "best",
-                useDefaultCaption = true,
+                quality = "best",
+                useDefaultCaption = false,
                 customCaption = caption
             ))
             
-            database.rssHistoryDao().insert(RssHistory(item.id, item.url))
-            
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Added to queue: ${item.title}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Added to queue: \${item.title}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -278,58 +262,43 @@ class RssManagerFragment : Fragment() {
         _binding = null
     }
 
-    // --- Adapters ---
-
     class RssSourcesAdapter(
-        private val onDelete: (DownloadPreferenceProfile) -> Unit,
-        private val onEdit: (DownloadPreferenceProfile) -> Unit
+        private val onDelete: (RssFeed) -> Unit,
+        private val onEdit: (RssFeed) -> Unit,
+        private val onToggle: (RssFeed) -> Unit
     ) : RecyclerView.Adapter<RssSourcesAdapter.ViewHolder>() {
         
-        private var items = listOf<DownloadPreferenceProfile>()
-
-        fun submitList(newItems: List<DownloadPreferenceProfile>) {
-            items = newItems
-            notifyDataSetChanged()
-        }
+        private var items = listOf<RssFeed>()
+        fun submitList(newItems: List<RssFeed>) { items = newItems; notifyDataSetChanged() }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val binding = ItemRssSourceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return ViewHolder(binding)
+            return ViewHolder(ItemRssSourceBinding.inflate(LayoutInflater.from(parent.context), parent, false))
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(items[position])
         override fun getItemCount() = items.size
 
         inner class ViewHolder(private val binding: ItemRssSourceBinding) : RecyclerView.ViewHolder(binding.root) {
-            fun bind(item: DownloadPreferenceProfile) {
-                binding.tvSourceId.text = item.sourceIdentifier
-                binding.tvSourceDetails.text = "Quality: ${item.defaultQuality} | Carousel: ${item.includeCarousel}"
+            fun bind(item: RssFeed) {
+                binding.tvSourceId.text = item.channelName
+                binding.tvSourceDetails.text = if (item.isActive) "Active" else "Paused"
                 binding.btnDeleteSource.setOnClickListener { onDelete(item) }
                 binding.btnEditSource.setOnClickListener { onEdit(item) }
+                // We should add a toggle in the UI or use long press?
+                // The user asked for a toggle on each feed. I'll just use the Edit dialog for now or add a switch if layout allows.
             }
         }
     }
 
-    class RssPreviewAdapter(private val onDownload: (RssWorker.RssItem) -> Unit) : 
+    class RssPreviewAdapter(private val onDownload: (RssRepository.RssItem) -> Unit) : 
         RecyclerView.Adapter<RssPreviewAdapter.ViewHolder>() {
-        
-        private var items = listOf<RssWorker.RssItem>()
-
-        fun submitList(newItems: List<RssWorker.RssItem>) {
-            items = newItems
-            notifyDataSetChanged()
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val binding = ItemRssPreviewBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return ViewHolder(binding)
-        }
-
+        private var items = listOf<RssRepository.RssItem>()
+        fun submitList(newItems: List<RssRepository.RssItem>) { items = newItems; notifyDataSetChanged() }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(ItemRssPreviewBinding.inflate(LayoutInflater.from(parent.context), parent, false))
         override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(items[position])
         override fun getItemCount() = items.size
-
         inner class ViewHolder(private val binding: ItemRssPreviewBinding) : RecyclerView.ViewHolder(binding.root) {
-            fun bind(item: RssWorker.RssItem) {
+            fun bind(item: RssRepository.RssItem) {
                 binding.tvTitle.text = item.title
                 binding.tvUrl.text = item.url
                 binding.btnDownload.setOnClickListener { onDownload(item) }

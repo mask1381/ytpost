@@ -2,80 +2,102 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/background"
+        app:elevation="0dp">
+        <com.google.android.material.appbar.MaterialToolbar
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="RSS Control Center"
+            app:titleCentered="true"
+            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="24dp">
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="80dp">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="20dp"
-                android:text="RSS Control Center"
-                android:textAppearance="?attr/textAppearanceHeadlineSmall"
-                android:textStyle="bold" />
-
-            <!-- Global Settings -->
+            <!-- Quick Actions Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="16dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/primaryContainer">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
                     android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Automatic Sync"
+                            android:textColor="@color/onPrimaryContainer"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Background fetching"
+                            android:textColor="@color/onPrimaryContainer"
+                            android:alpha="0.8"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelSmall" />
+                    </LinearLayout>
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/swAutoRss"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Automatic Background Sync"
-                        android:textAppearance="?attr/textAppearanceBodyLarge" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnFetchManual"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="Sync All Sources Now"
-                        app:icon="@android:drawable/ic_popup_sync" />
-
+                        app:thumbTint="@color/onPrimaryContainer"
+                        app:trackTint="@color/primary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Add Source Section -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFetchManual"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="24dp"
+                android:text="Sync All Sources"
+                app:icon="@android:drawable/ic_popup_sync"
+                app:cornerRadius="16dp" />
+
+            <!-- Add Source Input -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingBottom="8dp"
                 android:text="Add New Source"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:textColor="@color/primary" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
+                android:layout_marginBottom="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -84,14 +106,30 @@
                     android:padding="16dp">
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Material3.TextInputLayout.FilledBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="YouTube Channel ID or URL">
+                        app:boxBackgroundColor="@android:color/transparent"
+                        android:hint="YouTube ID / URL">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etRssSource"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:boxBackgroundColor="@android:color/transparent"
+                        android:hint="Caption Template">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etRssTemplate"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textMultiLine"
+                            android:minLines="2" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <LinearLayout
@@ -115,61 +153,42 @@
                             android:checked="true" />
                     </LinearLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:hint="Caption Template (e.g. &lt;b&gt;{title}&lt;/b&gt;)">
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etRssTemplate"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textMultiLine"
-                            android:minLines="2" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Placeholders: {title}, {url}"
-                        android:textAppearance="?attr/textAppearanceLabelSmall"
-                        android:alpha="0.6" />
-
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnAddRss"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="52dp"
                         android:layout_marginTop="8dp"
-                        android:text="Add Source" />
-
+                        android:text="Add Channel"
+                        app:cornerRadius="12dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Active Sources List -->
+            <!-- Sources List -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingBottom="8dp"
-                android:text="Active Sources"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:text="Active Channels"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:textColor="@color/primary" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvRssSources"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="24dp" />
 
-            <!-- Preview Section -->
+            <!-- Preview List -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingBottom="8dp"
-                android:text="Latest Activity (Last 10 Items)"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:text="Latest Activity"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:textColor="@color/primary" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvRssPreview"

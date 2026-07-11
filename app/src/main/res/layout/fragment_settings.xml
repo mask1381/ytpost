@@ -2,56 +2,62 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/background"
+        app:elevation="0dp">
+        <com.google.android.material.appbar.MaterialToolbar
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Settings"
+            app:titleCentered="true"
+            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Settings"
-                android:textAppearance="?attr/textAppearanceHeadlineMedium"
-                android:textColor="?attr/colorPrimary"
-                android:textStyle="bold"
-                android:layout_marginBottom="24dp"/>
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="80dp">
 
             <!-- Telegram Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Telegram Connection"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:textColor="@color/primary" />
+
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
+                android:layout_marginBottom="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Telegram API"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="16dp"/>
+                    android:padding="16dp">
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Material3.TextInputLayout.FilledBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="12dp"
+                        app:boxBackgroundColor="@android:color/transparent"
                         android:hint="API ID">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etApiId"
@@ -61,10 +67,11 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Material3.TextInputLayout.FilledBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="12dp"
+                        app:boxBackgroundColor="@android:color/transparent"
                         android:hint="API Hash">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etApiHash"
@@ -73,10 +80,11 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Material3.TextInputLayout.FilledBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="16dp"
+                        app:boxBackgroundColor="@android:color/transparent"
                         android:hint="Phone Number">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPhone"
@@ -93,76 +101,69 @@
                             android:id="@+id/btnSaveConfig"
                             style="@style/Widget.Material3.Button.TonalButton"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_weight="1"
                             android:layout_marginEnd="8dp"
-                            android:text="Save" />
+                            android:text="Save"
+                            app:cornerRadius="12dp" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnLogin"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_weight="1"
-                            android:text="Login" />
+                            android:text="Login"
+                            app:cornerRadius="12dp" />
                     </LinearLayout>
 
                     <TextView
                         android:id="@+id/tvLoginStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="16dp"
                         android:text="Status: Disconnected"
                         android:textAlignment="center"
-                        android:textAppearance="?attr/textAppearanceLabelMedium" />
+                        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+                        android:textColor="@color/onSurfaceVariant" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Network Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Connectivity"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:textColor="@color/primary" />
+
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
+                android:layout_marginBottom="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Connectivity"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="16dp"/>
+                    android:padding="16dp">
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/swManualProxy"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Manual Local Proxy"
-                        android:textAppearance="?attr/textAppearanceBodyLarge"
-                        android:layout_marginBottom="8dp" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Enable only if your VPN doesn't tunnel automatically (e.g. SOCKS5 10808)"
-                        android:textAppearance="?attr/textAppearanceLabelSmall"
-                        android:alpha="0.6"
-                        android:layout_marginBottom="16dp" />
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnTestProxy"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Material3.Button.TonalButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Check Proxy Ports" />
+                        android:layout_marginTop="12dp"
+                        android:text="Check Proxy Ports"
+                        app:cornerRadius="12dp" />
 
                     <TextView
                         android:id="@+id/tvProxyStatus"
@@ -170,60 +171,58 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:text="Ready to scan..."
-                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                         android:alpha="0.8" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Diagnostics Section (was Maintenance) -->
+            <!-- Diagnostics -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Diagnostics &amp; Tools"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:textColor="@color/primary" />
+
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
+                android:layout_marginBottom="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Diagnostics"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="16dp"/>
+                    android:padding="12dp">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnCheckVersion"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        style="@style/Widget.Material3.Button.TextButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:text="Check yt-dlp &amp; FFmpeg"
+                        android:text="System Check"
+                        android:gravity="start|center_vertical"
                         app:icon="@android:drawable/ic_menu_info_details" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnUploadCookies"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        style="@style/Widget.Material3.Button.TextButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:text="Upload cookies.txt"
+                        android:text="Manage Cookies"
+                        android:gravity="start|center_vertical"
                         app:icon="@android:drawable/ic_menu_save" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnExportLogs"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        style="@style/Widget.Material3.Button.TextButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Share Debug Logs"
+                        android:text="Export Debug Logs"
+                        android:gravity="start|center_vertical"
                         app:icon="@android:drawable/ic_menu_share" />
 
                     <TextView
@@ -233,7 +232,7 @@
                         android:layout_marginTop="12dp"
                         android:text="Cookies: Not set"
                         android:textAlignment="center"
-                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                         android:alpha="0.7" />
 
                     <TextView
@@ -242,9 +241,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:textAlignment="center"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                         android:alpha="0.6" />
-
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

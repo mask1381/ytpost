@@ -69,6 +69,29 @@ def preview_media(url, cookie_file_path=None, proxy=None):
             if attempt < 2: time.sleep(2); continue
             return json.dumps({"error": str(e)})
 
+def get_video_formats(url, cookie_file_path=None, proxy=None):
+    opts = get_base_opts(proxy, cookie_file_path)
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if not info: return json.dumps({"error": "No info returned"})
+            
+            formats_list = []
+            for f in info.get('formats', []):
+                formats_list.append({
+                    'format_id': f.get('format_id'),
+                    'ext': f.get('ext'),
+                    'resolution': f.get('resolution') or f"{f.get('width')}x{f.get('height')}",
+                    'fps': f.get('fps'),
+                    'filesize_approx': f.get('filesize') or f.get('filesize_approx'),
+                    'vcodec': f.get('vcodec'),
+                    'acodec': f.get('acodec'),
+                    'is_progressive': (f.get('vcodec') != 'none' and f.get('acodec') != 'none')
+                })
+            return json.dumps(formats_list)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
 def download_video(url, download_dir, quality="best", only_first_item=False, media_filter=None, cookie_file_path=None, ffmpeg_path=None, proxy=None, progress_listener=None, write_subs=False, audio_only=False, custom_args=None):
     if not os.path.exists(download_dir): os.makedirs(download_dir)
     

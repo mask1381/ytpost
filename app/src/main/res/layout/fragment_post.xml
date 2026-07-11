@@ -175,6 +175,9 @@
                         android:hint="Target Channel/Chat ID"
                         android:layout_marginBottom="16dp"
                         app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                        app:endIconMode="custom"
+                        app:endIconDrawable="@android:drawable/ic_menu_search"
+                        app:endIconContentDescription="Select from list"
                         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etDestination"
@@ -206,6 +209,15 @@
                         app:cornerRadius="16dp"
                         app:icon="@android:drawable/ic_menu_send"
                         app:iconGravity="textStart" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnShowFormats"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Show Available Formats"
+                        app:icon="@android:drawable/ic_menu_info_details" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

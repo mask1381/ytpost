@@ -2,7 +2,10 @@ import asyncio
 import socks
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
-from telethon.errors import SessionPasswordNeededError
+from telethon.errors import SessionPasswordNeededError, FloodWaitError
+from telethon.tl.types import Channel, Chat, ChatAdminRights
+import json
+import time
 
 # ذخیره‌ی کلاینت و لوپ برای حفظ وضعیت در تردهای مختلف اندروید
 _pending = {
@@ -69,6 +72,66 @@ def request_code(api_id: str, api_hash: str, phone: str, proxy: str = None) -> s
     except Exception as e:
         return f"ERROR: {str(e)}"
 
+def fetch_postable_chats(api_id: str, api_hash: str, session_str: str, proxy: str = None) -> str:
+    _ensure_consistent_loop()
+    client_proxy = _parse_proxy(proxy)
+    client = TelegramClient(StringSession(session_str), int(api_id), api_hash, proxy=client_proxy)
+    
+    try:
+        client.connect()
+        if not client.is_user_authorized():
+            return "ERROR: Unauthorized"
+            
+        dialogs = client.get_dialogs()
+        postable = []
+        
+        for d in dialogs:
+            entity = d.entity
+            if not isinstance(entity, (Channel, Chat)):
+                continue
+                
+            can_post = False
+            chat_type = "group"
+            
+            if isinstance(entity, Channel):
+                if entity.megagroup:
+                    chat_type = "megagroup"
+                else:
+                    chat_type = "channel"
+                
+                # Formula: -100 + id
+                full_id = int(f"-100{entity.id}")
+                
+                if entity.creator:
+                    can_post = True
+                elif entity.admin_rights and entity.admin_rights.post_messages:
+                    can_post = True
+                elif entity.megagroup and entity.admin_rights and entity.admin_rights.send_messages:
+                    # In megagroups, post_messages is for broadcast channels, send_messages is for admins
+                    can_post = True
+            else:
+                # Basic Chat (Group)
+                full_id = -entity.id
+                if entity.creator or entity.admin_rights:
+                    can_post = True
+                    
+            if can_post:
+                postable.append({
+                    'id': full_id,
+                    'title': d.name,
+                    'type': chat_type,
+                    'username': getattr(entity, 'username', None),
+                    'participants_count': getattr(entity, 'participants_count', None)
+                })
+                
+        return json.dumps(postable)
+    except FloodWaitError as e:
+        return f"FLOOD_WAIT:{e.seconds}"
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+    finally:
+        client.disconnect()
+
 def submit_code(code: str) -> str:
     _ensure_consistent_loop()
     client = _pending.get('client')
@@ -90,6 +153,66 @@ def submit_code(code: str) -> str:
     except Exception as e:
         return f"ERROR: {str(e)}"
 
+def fetch_postable_chats(api_id: str, api_hash: str, session_str: str, proxy: str = None) -> str:
+    _ensure_consistent_loop()
+    client_proxy = _parse_proxy(proxy)
+    client = TelegramClient(StringSession(session_str), int(api_id), api_hash, proxy=client_proxy)
+    
+    try:
+        client.connect()
+        if not client.is_user_authorized():
+            return "ERROR: Unauthorized"
+            
+        dialogs = client.get_dialogs()
+        postable = []
+        
+        for d in dialogs:
+            entity = d.entity
+            if not isinstance(entity, (Channel, Chat)):
+                continue
+                
+            can_post = False
+            chat_type = "group"
+            
+            if isinstance(entity, Channel):
+                if entity.megagroup:
+                    chat_type = "megagroup"
+                else:
+                    chat_type = "channel"
+                
+                # Formula: -100 + id
+                full_id = int(f"-100{entity.id}")
+                
+                if entity.creator:
+                    can_post = True
+                elif entity.admin_rights and entity.admin_rights.post_messages:
+                    can_post = True
+                elif entity.megagroup and entity.admin_rights and entity.admin_rights.send_messages:
+                    # In megagroups, post_messages is for broadcast channels, send_messages is for admins
+                    can_post = True
+            else:
+                # Basic Chat (Group)
+                full_id = -entity.id
+                if entity.creator or entity.admin_rights:
+                    can_post = True
+                    
+            if can_post:
+                postable.append({
+                    'id': full_id,
+                    'title': d.name,
+                    'type': chat_type,
+                    'username': getattr(entity, 'username', None),
+                    'participants_count': getattr(entity, 'participants_count', None)
+                })
+                
+        return json.dumps(postable)
+    except FloodWaitError as e:
+        return f"FLOOD_WAIT:{e.seconds}"
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+    finally:
+        client.disconnect()
+
 def submit_password(password: str) -> str:
     _ensure_consistent_loop()
     client = _pending.get('client')
@@ -104,3 +227,63 @@ def submit_password(password: str) -> str:
         return session_str
     except Exception as e:
         return f"ERROR: {str(e)}"
+
+def fetch_postable_chats(api_id: str, api_hash: str, session_str: str, proxy: str = None) -> str:
+    _ensure_consistent_loop()
+    client_proxy = _parse_proxy(proxy)
+    client = TelegramClient(StringSession(session_str), int(api_id), api_hash, proxy=client_proxy)
+    
+    try:
+        client.connect()
+        if not client.is_user_authorized():
+            return "ERROR: Unauthorized"
+            
+        dialogs = client.get_dialogs()
+        postable = []
+        
+        for d in dialogs:
+            entity = d.entity
+            if not isinstance(entity, (Channel, Chat)):
+                continue
+                
+            can_post = False
+            chat_type = "group"
+            
+            if isinstance(entity, Channel):
+                if entity.megagroup:
+                    chat_type = "megagroup"
+                else:
+                    chat_type = "channel"
+                
+                # Formula: -100 + id
+                full_id = int(f"-100{entity.id}")
+                
+                if entity.creator:
+                    can_post = True
+                elif entity.admin_rights and entity.admin_rights.post_messages:
+                    can_post = True
+                elif entity.megagroup and entity.admin_rights and entity.admin_rights.send_messages:
+                    # In megagroups, post_messages is for broadcast channels, send_messages is for admins
+                    can_post = True
+            else:
+                # Basic Chat (Group)
+                full_id = -entity.id
+                if entity.creator or entity.admin_rights:
+                    can_post = True
+                    
+            if can_post:
+                postable.append({
+                    'id': full_id,
+                    'title': d.name,
+                    'type': chat_type,
+                    'username': getattr(entity, 'username', None),
+                    'participants_count': getattr(entity, 'participants_count', None)
+                })
+                
+        return json.dumps(postable)
+    except FloodWaitError as e:
+        return f"FLOOD_WAIT:{e.seconds}"
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+    finally:
+        client.disconnect()
