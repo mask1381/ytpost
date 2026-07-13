@@ -155,14 +155,14 @@ class RssManagerFragment : Fragment() {
                         uploadDate = realItem.published
                     )
                 } else {
-                    CaptionScriptEngine.VideoInfo("Sample Title #Tag", "", feed.channelName, "")
+                    CaptionScriptEngine.VideoInfo("Sample Title #Tag", "", "", feed.channelName, "")
                 }
                 // Trigger initial preview
                 withContext(Dispatchers.Main) {
                     scriptFlow.value = dialogBinding.etCaptionScript.text.toString()
                 }
             } catch (e: Exception) {
-                latestVideoInfo = CaptionScriptEngine.VideoInfo("Sample Title #Tag", "", feed.channelName, "")
+                latestVideoInfo = CaptionScriptEngine.VideoInfo("Sample Title #Tag", "", "", feed.channelName, "")
             }
         }
 
@@ -231,6 +231,7 @@ class RssManagerFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val info = CaptionScriptEngine.VideoInfo(
                 title = "Sample Video #Cool #Tutorial",
+                url = "https://example.com/video",
                 description = "This is a sample description",
                 channelName = feed.channelName,
                 uploadDate = "2023-01-01"
